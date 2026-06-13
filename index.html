@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Well-being Impact Studio</title>
+    <link rel="stylesheet" href="styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <aside class="sidebar" aria-label="主要ナビゲーション">
+        <div class="brand">
+          <span class="brand-mark">W</span>
+          <div>
+            <strong>Well-being Impact Studio</strong>
+            <span>人的資産価値診断</span>
+          </div>
+        </div>
+
+        <nav class="steps" aria-label="診断ステップ">
+          <button class="step is-active" data-view="diagnosis">
+            <span>01</span>
+            <strong>診断</strong>
+          </button>
+          <button class="step" data-view="results">
+            <span>02</span>
+            <strong>結果</strong>
+          </button>
+          <button class="step" data-view="scenario">
+            <span>03</span>
+            <strong>AIシナリオ</strong>
+          </button>
+          <button class="step" data-view="recommendations">
+            <span>04</span>
+            <strong>提案</strong>
+          </button>
+          <button class="step" data-view="growth">
+            <span>05</span>
+            <strong>成長比較</strong>
+          </button>
+        </nav>
+
+        <div class="sidebar-panel">
+          <span class="eyebrow">MVPスコープ</span>
+          <p>個人、探究度数、組織、自律分散、プロジェクト型、well-being、地域、事業性を一度に測定します。</p>
+        </div>
+      </aside>
+
+      <main class="workspace">
+        <section class="view is-visible" id="diagnosis">
+          <div class="page-header">
+            <div>
+              <span class="eyebrow">Assessment</span>
+              <h1>人的資産価値と組織OSを測る</h1>
+              <p>39問の回答から、現在の人的資産価値、探究度数、組織タイプ、地域well-beingへの貢献可能性を可視化します。</p>
+            </div>
+            <div class="progress-box" aria-live="polite">
+              <strong id="answeredCount">0 / 39</strong>
+              <span>回答済み</span>
+            </div>
+          </div>
+
+          <div class="controls-row">
+            <label>
+              診断ラウンド
+              <select id="roundSelect">
+                <option value="before">Before</option>
+                <option value="after">After</option>
+              </select>
+            </label>
+            <button class="secondary-button" id="sampleButton" type="button">サンプル入力</button>
+            <button class="secondary-button" id="resetButton" type="button">リセット</button>
+          </div>
+
+          <form id="assessmentForm" class="assessment-form"></form>
+        </section>
+
+        <section class="view" id="results">
+          <div class="page-header">
+            <div>
+              <span class="eyebrow">Dashboard</span>
+              <h1>診断結果ダッシュボード</h1>
+              <p>スコア、組織タイプ、強みとボトルネックをまとめて確認できます。</p>
+            </div>
+            <button class="primary-button" data-view-target="scenario" type="button">AIシナリオへ</button>
+          </div>
+
+          <div class="score-grid" id="scoreGrid"></div>
+
+          <div class="analytics-layout">
+            <section class="panel">
+              <div class="panel-header">
+                <h2>組織タイプ</h2>
+                <span id="orgTypeBadge" class="badge">未診断</span>
+              </div>
+              <div class="matrix" aria-label="自律分散度とプロジェクト型成熟度の2軸マップ">
+                <div class="matrix-label top">プロジェクト型成熟度 高</div>
+                <div class="matrix-label bottom">プロジェクト型成熟度 低</div>
+                <div class="matrix-label left">自律分散度 低</div>
+                <div class="matrix-label right">自律分散度 高</div>
+                <div class="quadrant q1">管理型プロジェクト</div>
+                <div class="quadrant q2">自律分散プロジェクト</div>
+                <div class="quadrant q3">階層固定型</div>
+                <div class="quadrant q4">個人自走型</div>
+                <span class="matrix-dot" id="matrixDot"></span>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-header">
+                <h2>カテゴリ別レーダー</h2>
+                <span class="badge muted">0-100</span>
+              </div>
+              <div class="radar-wrap">
+                <canvas id="radarCanvas" width="520" height="420" aria-label="カテゴリ別スコアのレーダーチャート"></canvas>
+              </div>
+            </section>
+          </div>
+
+          <section class="panel">
+            <div class="panel-header">
+              <h2>診断サマリー</h2>
+              <span class="badge muted" id="summaryRound">Before</span>
+            </div>
+            <div class="summary-grid" id="summaryGrid"></div>
+          </section>
+        </section>
+
+        <section class="view" id="scenario">
+          <div class="page-header">
+            <div>
+              <span class="eyebrow">AI Scenario Lab</span>
+              <h1>業界・地域・市場・組織ストーリーを生成して数値化する</h1>
+              <p>診断結果に文脈を重ねて、実践プロジェクトの仮説、関係者、リスク、well-beingインパクト、事業性を評価します。</p>
+            </div>
+            <button class="primary-button" data-view-target="recommendations" type="button">提案へ進む</button>
+          </div>
+
+          <div class="scenario-layout">
+            <section class="panel">
+              <div class="panel-header">
+                <h2>文脈入力</h2>
+                <span class="badge muted">Context</span>
+              </div>
+
+              <div class="context-form">
+                <label>
+                  業界
+                  <input id="industryInput" type="text" value="地域医療・介護" placeholder="例: 観光、製造、教育、地域医療">
+                </label>
+                <label>
+                  会社・活動場所
+                  <input id="locationInput" type="text" value="地方都市の中核病院と周辺商店街" placeholder="例: 福岡市、地方工場、商店街、大学">
+                </label>
+                <label>
+                  市場・対象者
+                  <input id="marketInput" type="text" value="高齢者家族、介護職、自治体の地域包括ケア担当" placeholder="例: 中小企業、若手社員、子育て世帯">
+                </label>
+                <label>
+                  組織成熟度
+                  <select id="maturityInput">
+                    <option value="early">立ち上げ期</option>
+                    <option value="stable" selected>安定運用期</option>
+                    <option value="change">変革期</option>
+                    <option value="scale">拡大期</option>
+                  </select>
+                </label>
+                <label class="wide-field">
+                  組織内のストーリー
+                  <textarea id="storyInput" rows="6" placeholder="例: 部門ごとの壁があり、現場の課題は見えているがプロジェクト化できていない">部門ごとの壁があり、現場の課題は見えているが、地域や外部人材を巻き込んだプロジェクトに変換できていない。若手には意欲があるが、意思決定は管理職に集中している。</textarea>
+                </label>
+              </div>
+
+              <div class="controls-row">
+                <button class="primary-button" id="generateScenarioButton" type="button">シナリオ生成</button>
+                <button class="secondary-button" id="scenarioSampleButton" type="button">別サンプル</button>
+              </div>
+            </section>
+
+            <section class="panel">
+              <div class="panel-header">
+                <h2>文脈スコア</h2>
+                <span class="badge" id="scenarioScoreBadge">未生成</span>
+              </div>
+              <div class="scenario-score-grid" id="scenarioScoreGrid"></div>
+            </section>
+          </div>
+
+          <div class="scenario-output" id="scenarioOutput"></div>
+
+          <section class="panel image-panel">
+            <div class="panel-header">
+              <h2>生成画像</h2>
+              <span class="badge muted">Visual Concept</span>
+            </div>
+            <div class="image-generator-layout">
+              <div class="generated-image-wrap">
+                <canvas id="generatedImageCanvas" width="1200" height="720" aria-label="AIシナリオから生成されたコンセプト画像"></canvas>
+              </div>
+              <div class="image-prompt-panel">
+                <label>
+                  画像生成プロンプト
+                  <textarea id="imagePromptText" rows="9" readonly>シナリオ生成後に、画像生成用プロンプトが表示されます。</textarea>
+                </label>
+                <div class="controls-row">
+                  <button class="primary-button" id="generateImageButton" type="button">画像生成</button>
+                  <button class="secondary-button" id="downloadImageButton" type="button">PNG保存</button>
+                </div>
+              </div>
+            </div>
+          </section>
+        </section>
+
+        <section class="view" id="recommendations">
+          <div class="page-header">
+            <div>
+              <span class="eyebrow">AI Coach</span>
+              <h1>次に実践すべき90日アクション</h1>
+              <p>診断結果から、学習テーマ、実践プロジェクト、組織改善アクションを生成します。</p>
+            </div>
+            <button class="primary-button" data-view-target="growth" type="button">成長比較へ</button>
+          </div>
+
+          <div class="recommendation-grid" id="recommendationGrid"></div>
+        </section>
+
+        <section class="view" id="growth">
+          <div class="page-header">
+            <div>
+              <span class="eyebrow">Growth Report</span>
+              <h1>Before / After 成長レポート</h1>
+              <p>初回診断と再診断の差分から、人的資産価値とwell-beingインパクトの伸びを確認します。</p>
+            </div>
+            <button class="primary-button" data-view-target="diagnosis" data-round-target="after" type="button">Afterを入力する</button>
+          </div>
+
+          <div class="growth-layout">
+            <section class="panel">
+              <div class="panel-header">
+                <h2>総合変化</h2>
+                <span class="badge" id="growthBadge">未比較</span>
+              </div>
+              <div class="growth-hero">
+                <strong id="growthScore">--</strong>
+                <span>Human Asset Growth Index</span>
+              </div>
+              <p id="growthNarrative" class="narrative">BeforeとAfterの両方を入力すると、変化が表示されます。</p>
+            </section>
+
+            <section class="panel">
+              <div class="panel-header">
+                <h2>カテゴリ別変化</h2>
+                <span class="badge muted">After - Before</span>
+              </div>
+              <div id="deltaList" class="delta-list"></div>
+            </section>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script src="app.js"></script>
+  </body>
+</html>
