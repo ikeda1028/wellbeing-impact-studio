@@ -20,7 +20,8 @@ function extractJson(text) {
 export default async function handler(request, response) {
   if (request.method === "OPTIONS") return sendJson(response, { ok: true });
   if (request.method !== "POST") return sendJson(response, { error: "Method not allowed" }, 405);
-  if (!process.env.OPENAI_API_KEY) return sendJson(response, { error: "OPENAI_API_KEY is not configured" }, 500);
+  const apiKey = process.env.OPENAI_WBS_KEY || process.env.OPENAI_API_KEY;
+  if (!apiKey) return sendJson(response, { error: "OPENAI_WBS_KEY is not configured" }, 500);
 
   const { context, scene, answer, selfScores, esgScores } = request.body || {};
 
@@ -62,7 +63,7 @@ ${JSON.stringify(esgScores, null, 2)}
   const openaiResponse = await fetch(OPENAI_API_URL, {
     method: "POST",
     headers: {
-      "authorization": `Bearer ${process.env.OPENAI_API_KEY}`,
+      "authorization": `Bearer ${apiKey}`,
       "content-type": "application/json"
     },
     body: JSON.stringify({
