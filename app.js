@@ -214,6 +214,7 @@ const growthBadge = document.querySelector("#growthBadge");
 const growthNarrative = document.querySelector("#growthNarrative");
 const deltaList = document.querySelector("#deltaList");
 const scenarioStageBadge = document.querySelector("#scenarioStageBadge");
+const aiStatusBadge = document.querySelector("#aiStatusBadge");
 const scenarioChat = document.querySelector("#scenarioChat");
 const scenarioOptions = document.querySelector("#scenarioOptions");
 const scenarioAnswerInput = document.querySelector("#scenarioAnswerInput");
@@ -305,6 +306,11 @@ const scenarioScenes = [
     focus: "事業性・ESG説明力・インパクト測定"
   }
 ];
+
+const AI_SCENARIO_API =
+  window.WELLBEING_AI_API_BASE ||
+  localStorage.getItem("WELLBEING_AI_API_BASE") ||
+  "";
 
 function renderForm() {
   form.innerHTML = categories.map((category) => {
@@ -981,7 +987,45 @@ function buildScenario() {
   renderRecommendations();
 }
 
-function submitScenarioAnswer() {
+async function evaluateScenarioWithAi(answer, sceneIndex, fallbackScore) {
+  const endpoint = `${AI_SCENARIO_API}/api/scenario-evaluate`;
+  try {
+    const response = await fetch(endpoint, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({
+        context: state.scenarioContext,
+        scene: scenarioScenes[sceneIndex],
+        answer,
+        selfScores: allScores(),
+        esgScores: allEsgScores()
+      })
+    });
+    if (!response.ok) throw new Error(`AI API ${response.status}`);
+    const data = await response.json();
+    return {
+      score: {
+        inquiry: clamp(data.score?.inquiry ?? fallbackScore.inquiry),
+        org: clamp(data.score?.org ?? fallbackScore.org),
+        wellbeing: clamp(data.score?.wellbeing ?? fallbackScore.wellbeing),
+        business: clamp(data.score?.business ?? fallbackScore.business),
+        esg: clamp(data.score?.esg ?? fallbackScore.esg)
+      },
+      feedback: data.feedback || "",
+      nextProbe: data.nextProbe || "",
+      aiUsed: true
+    };
+  } catch (error) {
+    return {
+      score: fallbackScore,
+      feedback: "AI APIに接続できないため、ローカル評価で測定しました。",
+      nextProbe: "",
+      aiUsed: false
+    };
+  }
+}
+
+async function submitScenarioAnswer() {
   ensureScenarioStarted();
   const answer = scenarioAnswerInput.value.trim();
   if (!answer) return;
@@ -1006,23 +1050,29 @@ function submitScenarioAnswer() {
   } else if (state.scenarioMode === "scenes") {
     const sceneIndex = state.scenarioSceneIndex;
     const scene = scenarioScenes[sceneIndex];
-    const score = scoreScenarioResponse(answer, sceneIndex);
-    state.scenarioResponses.push({ scene: scene.title, answer, score });
+    const fallbackScore = scoreScenarioResponse(answer, sceneIndex);
+    submitScenarioAnswerButton.disabled = true;
+    submitScenarioAnswerButton.textContent = "AI測定中...";
+    const evaluation = await evaluateScenarioWithAi(answer, sceneIndex, fallbackScore);
+    submitScenarioAnswerButton.disabled = false;
+    submitScenarioAnswerButton.textContent = "回答して進む";
+    const score = evaluation.score;
+    state.scenarioResponses.push({ scene: scene.title, answer, score, feedback: evaluation.feedback, aiUsed: evaluation.aiUsed });
     state.scenarioSceneIndex += 1;
     buildScenario();
 
     if (state.scenarioSceneIndex < scenarioScenes.length) {
       state.scenarioMessages.push({
         role: "ai",
-        text: "判断を測定しました。次の場面に進みます。",
-        meta: buildScenePrompt(state.scenarioSceneIndex)
+        text: evaluation.aiUsed ? "AIが回答を測定しました。次の場面に進みます。" : "回答をローカル評価で測定しました。次の場面に進みます。",
+        meta: `${evaluation.feedback}${evaluation.nextProbe ? `\n深掘り問い: ${evaluation.nextProbe}` : ""}\n\n${buildScenePrompt(state.scenarioSceneIndex)}`
       });
     } else {
       state.scenarioMode = "complete";
       state.scenarioMessages.push({
         role: "ai",
-        text: "AI実践シナリオは完了です。結果画面で、01の自己診断と02の実践判断の統合結果を確認できます。",
-        meta: "必要なら、回答を見直してもう一度シナリオを実行できます。"
+        text: evaluation.aiUsed ? "AI実践シナリオは完了です。結果画面で、01の自己診断と02の実践判断の統合結果を確認できます。" : "実践シナリオは完了です。AI APIに接続できない場面はローカル評価で補完しています。",
+        meta: `${evaluation.feedback}\n必要なら、回答を見直してもう一度シナリオを実行できます。`
       });
     }
   }
@@ -1273,6 +1323,8 @@ function renderScenario() {
     state.scenarioMode === "collecting" ? "情報収集中" :
       state.scenarioMode === "scenes" ? `場面 ${state.scenarioSceneIndex + 1} / ${scenarioScenes.length}` :
         "完了";
+  const lastResponse = state.scenarioResponses[state.scenarioResponses.length - 1];
+  aiStatusBadge.textContent = lastResponse?.aiUsed ? "AI API接続" : "ローカル評価";
 
   const currentField = state.scenarioMode === "collecting" ? scenarioCurrentField() : null;
   if (currentField?.options?.length) {
