@@ -106,12 +106,82 @@ const categories = [
 
 const totalQuestionCount = categories.reduce((sum, category) => sum + category.questions.length, 0);
 
+const esgCategories = [
+  {
+    id: "esgGovernance",
+    label: "ガバナンス",
+    short: "Governance",
+    description: "ESGリスクと機会を監督・管理する体制を測ります。",
+    questions: [
+      "経営層や責任者がESG・well-being・人的資本のリスクと機会を定期的に確認している",
+      "ESGに関する意思決定、責任者、承認プロセスが明確である",
+      "不祥事、ハラスメント、情報管理、利益相反などの統制が整っている"
+    ]
+  },
+  {
+    id: "esgStrategy",
+    label: "戦略・事業性",
+    short: "Strategy",
+    description: "ESGが事業戦略、収益、資金調達、競争優位に接続しているかを測ります。",
+    questions: [
+      "ESG・well-beingへの取り組みが、事業成長や顧客価値と結びついている",
+      "短期・中期・長期で、ESGリスクと機会が事業に与える影響を説明できる",
+      "ESG施策の収益性、コスト、資金使途、投資回収の仮説がある"
+    ]
+  },
+  {
+    id: "esgRisk",
+    label: "リスク管理",
+    short: "Risk",
+    description: "気候、社会、人材、地域、評判リスクを識別・管理できているかを測ります。",
+    questions: [
+      "環境・社会・人的資本・地域に関する重要リスクを洗い出している",
+      "リスクの発生可能性、影響度、対応策を定期的に更新している",
+      "ESGリスク管理が通常の事業リスク管理やプロジェクト管理に組み込まれている"
+    ]
+  },
+  {
+    id: "esgMetrics",
+    label: "指標・開示",
+    short: "Metrics",
+    description: "投資家に説明できるKPI、目標、データ、開示準備を測ります。",
+    questions: [
+      "環境・社会・人的資本・well-beingに関するKPIを設定している",
+      "KPIの実績データを継続的に収集し、前後比較できる",
+      "投資家や外部関係者に説明できるレポートや根拠資料を準備している"
+    ]
+  },
+  {
+    id: "esgImpact",
+    label: "社会・地域インパクト",
+    short: "Impact",
+    description: "地域well-being、人権、包摂性、ステークホルダー価値を測ります。",
+    questions: [
+      "地域、顧客、従業員、取引先など主要ステークホルダーへの影響を把握している",
+      "弱い立場の人や取り残されやすい人への配慮が事業設計に入っている",
+      "社会・地域への良い影響と負の影響の両方を説明できる"
+    ]
+  },
+  {
+    id: "esgClimate",
+    label: "環境・気候対応",
+    short: "Climate",
+    description: "気候・環境リスク、排出量、資源利用への対応準備を測ります。",
+    questions: [
+      "自社・プロジェクトに関係する環境負荷や気候リスクを把握している",
+      "エネルギー、廃棄物、移動、調達などの改善余地を特定している",
+      "環境・気候に関する目標や改善アクションを設定している"
+    ]
+  }
+];
+
 const state = {
   round: "before",
   answers: {
     before: {},
     after: {}
   },
+  esgAnswers: {},
   scenario: null
 };
 
@@ -143,6 +213,11 @@ const generatedImageCanvas = document.querySelector("#generatedImageCanvas");
 const imagePromptText = document.querySelector("#imagePromptText");
 const generateImageButton = document.querySelector("#generateImageButton");
 const downloadImageButton = document.querySelector("#downloadImageButton");
+const esgForm = document.querySelector("#esgForm");
+const esgGradeBadge = document.querySelector("#esgGradeBadge");
+const esgTotalScore = document.querySelector("#esgTotalScore");
+const esgScoreGrid = document.querySelector("#esgScoreGrid");
+const esgSummaryGrid = document.querySelector("#esgSummaryGrid");
 
 function questionKey(categoryId, questionIndex) {
   return `${categoryId}_${questionIndex}`;
@@ -217,6 +292,102 @@ function categoryScore(category, round = state.round) {
 
   if (!values.length) return 0;
   return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 20);
+}
+
+function esgQuestionKey(categoryId, questionIndex) {
+  return `${categoryId}_${questionIndex}`;
+}
+
+function renderEsgForm() {
+  esgForm.innerHTML = esgCategories.map((category) => {
+    const questions = category.questions.map((question, index) => {
+      const key = esgQuestionKey(category.id, index);
+      const value = state.esgAnswers[key] || "";
+      const scale = [1, 2, 3, 4, 5].map((score) => `
+        <label>
+          <input type="radio" name="${key}" value="${score}" ${Number(value) === score ? "checked" : ""}>
+          <span>${score}</span>
+        </label>
+      `).join("");
+
+      return `
+        <div class="question-row">
+          <label>${question}</label>
+          <div class="scale" role="radiogroup" aria-label="${question}">
+            ${scale}
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    return `
+      <section class="question-group">
+        <div class="group-header">
+          <div>
+            <h2>${category.label}</h2>
+            <p>${category.description}</p>
+          </div>
+          <span class="group-score" id="esg_group_${category.id}">--</span>
+        </div>
+        <div class="question-list">${questions}</div>
+      </section>
+    `;
+  }).join("");
+
+  esgForm.querySelectorAll("input[type='radio']").forEach((input) => {
+    input.addEventListener("change", (event) => {
+      state.esgAnswers[event.target.name] = Number(event.target.value);
+      updateAll();
+    });
+  });
+}
+
+function esgCategoryScore(category) {
+  const values = category.questions
+    .map((_, index) => state.esgAnswers[esgQuestionKey(category.id, index)])
+    .filter(Boolean);
+
+  if (!values.length) return 0;
+  return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 20);
+}
+
+function allEsgScores() {
+  return Object.fromEntries(esgCategories.map((category) => [category.id, esgCategoryScore(category)]));
+}
+
+function esgCompositeScore() {
+  const scores = allScores();
+  const esg = allEsgScores();
+  const scenario = state.scenario?.scores;
+  const disclosureReadiness = (
+    esg.esgGovernance * 0.18 +
+    esg.esgStrategy * 0.18 +
+    esg.esgRisk * 0.16 +
+    esg.esgMetrics * 0.18 +
+    esg.esgImpact * 0.16 +
+    esg.esgClimate * 0.14
+  );
+  const operatingReadiness = (
+    scores.orgWellbeing * 0.18 +
+    scores.regional * 0.18 +
+    scores.business * 0.18 +
+    scores.inquiry * 0.12 +
+    scores.project * 0.12 +
+    scores.leadership * 0.12 +
+    scores.autonomy * 0.1
+  );
+  const scenarioReadiness = scenario
+    ? scenario.impactIndex * 0.45 + scenario.businessPotential * 0.25 + scenario.wellbeingImpact * 0.2 + (100 - scenario.executionRisk) * 0.1
+    : operatingReadiness;
+
+  return clamp(disclosureReadiness * 0.55 + operatingReadiness * 0.25 + scenarioReadiness * 0.2);
+}
+
+function esgGrade(score) {
+  if (score >= 85) return { label: "A 適格候補", body: "投資家説明に必要な体制、開示、インパクト、事業性がかなり整っています。" };
+  if (score >= 70) return { label: "B 条件付き適格", body: "投資家に説明できる土台があります。KPI、リスク管理、開示根拠を補強すると説得力が増します。" };
+  if (score >= 55) return { label: "C 要改善", body: "事業や社会価値の可能性はありますが、投資家向けの開示・管理・定量化が不足しています。" };
+  return { label: "D 準備不足", body: "投資適格性の前に、ガバナンス、KPI、リスク管理、事業仮説の整備が必要です。" };
 }
 
 function allScores(round = state.round) {
@@ -406,6 +577,57 @@ function renderSummary() {
     {
       title: "ボトルネック",
       body: `${weak.map((item) => item.label).join("、")}が次の伸びしろです。教育コンテンツと短期プロジェクトで補強します。`
+    }
+  ].map((item) => `
+    <article class="summary-item">
+      <strong>${item.title}</strong>
+      <p>${item.body}</p>
+    </article>
+  `).join("");
+}
+
+function renderEsg() {
+  const esg = allEsgScores();
+  const total = esgCompositeScore();
+  const grade = esgGrade(total);
+  const scoreItems = [
+    ["ガバナンス", esg.esgGovernance],
+    ["戦略・事業性", esg.esgStrategy],
+    ["リスク管理", esg.esgRisk],
+    ["指標・開示", esg.esgMetrics],
+    ["社会・地域", esg.esgImpact],
+    ["環境・気候", esg.esgClimate]
+  ];
+  const weak = scoreItems.filter(([, value]) => value > 0).sort((a, b) => a[1] - b[1]).slice(0, 2);
+
+  esgGradeBadge.textContent = grade.label;
+  esgTotalScore.textContent = total || "--";
+
+  esgCategories.forEach((category) => {
+    const node = document.querySelector(`#esg_group_${category.id}`);
+    if (node) node.textContent = `${esg[category.id] || "--"}`;
+  });
+
+  esgScoreGrid.innerHTML = scoreItems.map(([label, value]) => `
+    <article class="esg-score-card">
+      <span>${label}</span>
+      <strong>${value || "--"}</strong>
+      <div class="meter"><i style="width:${value}%"></i></div>
+    </article>
+  `).join("");
+
+  esgSummaryGrid.innerHTML = [
+    {
+      title: "投資適格性の見立て",
+      body: grade.body
+    },
+    {
+      title: "評価の考え方",
+      body: "IFRS S1/S2やTCFDのガバナンス、戦略、リスク管理、指標・目標に、GRI的な社会・地域インパクトを加えて評価しています。"
+    },
+    {
+      title: "次に補強する領域",
+      body: weak.length ? `${weak.map(([label]) => label).join("、")}を優先的に補強します。投資家には、根拠データ、目標、管理体制、事業への接続をセットで説明します。` : "まだESG診断が未入力です。6領域を入力すると補強ポイントが表示されます。"
     }
   ].map((item) => `
     <article class="summary-item">
@@ -863,6 +1085,8 @@ function renderRecommendations() {
   const type = organizationType(scores);
   const total = weightedScore(scores);
   const scenario = state.scenario;
+  const esgScore = esgCompositeScore();
+  const esgStatus = esgGrade(esgScore);
   const cards = [
     {
       title: "優先テーマ",
@@ -889,6 +1113,15 @@ function renderRecommendations() {
         "業界・地域・市場を入力",
         "組織内ストーリーを入力",
         "AIシナリオで数値化"
+      ]
+    },
+    {
+      title: "ESG投資適格性",
+      body: `現在のESG Readinessは${esgScore || "--"}点、判定は「${esgStatus.label}」です。投資判断ではなく、投資家に説明できる準備度として扱います。`,
+      list: [
+        "ガバナンス・戦略・リスク管理・指標/開示を整える",
+        "地域well-beingと人的資本のKPIを投資家向けに翻訳する",
+        "環境・気候リスクと社会インパクトを両方説明する"
       ]
     },
     {
@@ -978,6 +1211,7 @@ function updateAll() {
   drawRadar();
   renderSummary();
   renderScenario();
+  renderEsg();
   renderRecommendations();
   renderGrowth();
 }
@@ -1005,7 +1239,23 @@ function sampleAnswers() {
     });
   });
   renderForm();
+  sampleEsgAnswers();
   updateAll();
+}
+
+function sampleEsgAnswers() {
+  const templates = {
+    before: [3, 3, 2, 2, 3, 2],
+    after: [4, 4, 4, 4, 4, 3]
+  };
+  esgCategories.forEach((category, categoryIndex) => {
+    category.questions.forEach((_, questionIndex) => {
+      const base = templates[state.round][categoryIndex];
+      const adjustment = questionIndex === 1 ? 1 : 0;
+      state.esgAnswers[esgQuestionKey(category.id, questionIndex)] = Math.min(5, base + adjustment);
+    });
+  });
+  renderEsgForm();
 }
 
 function scenarioSample() {
@@ -1050,7 +1300,9 @@ function downloadGeneratedImage() {
 
 function resetCurrentRound() {
   state.answers[state.round] = {};
+  state.esgAnswers = {};
   renderForm();
+  renderEsgForm();
   updateAll();
 }
 
@@ -1084,4 +1336,5 @@ generateImageButton.addEventListener("click", generateScenarioImage);
 downloadImageButton.addEventListener("click", downloadGeneratedImage);
 
 renderForm();
+renderEsgForm();
 updateAll();

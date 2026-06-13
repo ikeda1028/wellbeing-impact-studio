@@ -392,6 +392,7 @@ textarea {
 
 .analytics-layout,
 .scenario-layout,
+.esg-layout,
 .growth-layout {
   display: grid;
   grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
@@ -520,6 +521,7 @@ canvas {
 .summary-grid,
 .recommendation-grid,
 .scenario-score-grid,
+.esg-score-grid,
 .scenario-output {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
@@ -529,7 +531,8 @@ canvas {
 .summary-item,
 .recommendation-card,
 .scenario-card,
-.scenario-score {
+.scenario-score,
+.esg-score-card {
   padding: 16px;
   background: var(--soft);
   border: 1px solid var(--line);
@@ -539,7 +542,8 @@ canvas {
 .summary-item strong,
 .recommendation-card strong,
 .scenario-card strong,
-.scenario-score strong {
+.scenario-score strong,
+.esg-score-card strong {
   display: block;
   margin-bottom: 8px;
 }
@@ -548,6 +552,7 @@ canvas {
 .recommendation-card p,
 .scenario-card p,
 .scenario-score p,
+.esg-score-card p,
 .narrative {
   margin: 0;
   color: var(--muted);
@@ -593,6 +598,53 @@ canvas {
 }
 
 .scenario-score span {
+  display: block;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+  margin-bottom: 8px;
+}
+
+.compact-form {
+  gap: 12px;
+}
+
+.compact-form .question-group {
+  box-shadow: none;
+}
+
+.compact-form .question-row {
+  grid-template-columns: minmax(220px, 1fr) 230px;
+  padding: 13px 16px;
+}
+
+.esg-score-hero {
+  display: grid;
+  gap: 6px;
+  padding: 26px;
+  border-radius: 8px;
+  background: #f2f8f5;
+  margin-bottom: 14px;
+}
+
+.esg-score-hero strong {
+  font-size: 58px;
+  line-height: 1;
+  color: var(--green);
+}
+
+.esg-score-hero span {
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.esg-score-card strong {
+  font-size: 28px;
+  color: var(--green);
+  line-height: 1;
+}
+
+.esg-score-card span {
   display: block;
   color: var(--muted);
   font-size: 13px;
@@ -707,12 +759,14 @@ canvas {
   .summary-grid,
   .recommendation-grid,
   .scenario-score-grid,
+  .esg-score-grid,
   .scenario-output {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .analytics-layout,
   .scenario-layout,
+  .esg-layout,
   .image-generator-layout,
   .growth-layout {
     grid-template-columns: 1fr;
@@ -734,6 +788,7 @@ canvas {
   .summary-grid,
   .recommendation-grid,
   .scenario-score-grid,
+  .esg-score-grid,
   .scenario-output,
   .context-form {
     grid-template-columns: 1fr;
@@ -748,6 +803,10 @@ canvas {
   }
 
   .question-row {
+    grid-template-columns: 1fr;
+  }
+
+  .compact-form .question-row {
     grid-template-columns: 1fr;
   }
 
