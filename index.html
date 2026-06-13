@@ -22,24 +22,20 @@
             <span>01</span>
             <strong>診断</strong>
           </button>
-          <button class="step" data-view="results">
-            <span>02</span>
-            <strong>結果</strong>
-          </button>
           <button class="step" data-view="scenario">
-            <span>03</span>
+            <span>02</span>
             <strong>AIシナリオ</strong>
           </button>
-          <button class="step" data-view="esg">
-            <span>04</span>
-            <strong>ESG適格性</strong>
+          <button class="step" data-view="results">
+            <span>03</span>
+            <strong>結果</strong>
           </button>
           <button class="step" data-view="recommendations">
-            <span>05</span>
+            <span>04</span>
             <strong>提案</strong>
           </button>
           <button class="step" data-view="growth">
-            <span>06</span>
+            <span>05</span>
             <strong>成長比較</strong>
           </button>
         </nav>
@@ -55,11 +51,11 @@
           <div class="page-header">
             <div>
               <span class="eyebrow">Assessment</span>
-              <h1>人的資産価値と組織OSを測る</h1>
-              <p>39問の回答から、現在の人的資産価値、探究度数、組織タイプ、地域well-beingへの貢献可能性を可視化します。</p>
+              <h1>人的資産価値・well-being・ESGを測る</h1>
+              <p>自己認識としての人的資産、探究度数、組織OS、well-being、ESG投資適格性をまとめて測定します。</p>
             </div>
             <div class="progress-box" aria-live="polite">
-              <strong id="answeredCount">0 / 39</strong>
+              <strong id="answeredCount">0 / 57</strong>
               <span>回答済み</span>
             </div>
           </div>
@@ -77,16 +73,56 @@
           </div>
 
           <form id="assessmentForm" class="assessment-form"></form>
+
+          <section class="diagnosis-subsection" aria-label="ESG投資適格性診断">
+            <div class="page-header compact-header">
+              <div>
+                <span class="eyebrow">ESG Investment Readiness</span>
+                <h1>ESG投資適格性も同時に測る</h1>
+                <p>ISSB/IFRS、TCFD、GRIの考え方に沿って、投資家に説明できるサステナビリティ経営・開示・インパクトの準備度を測ります。</p>
+              </div>
+            </div>
+
+            <div class="esg-layout">
+              <section class="panel">
+                <div class="panel-header">
+                  <h2>ESG診断</h2>
+                  <span class="badge muted">6領域</span>
+                </div>
+                <form id="esgForm" class="assessment-form compact-form"></form>
+              </section>
+
+              <section class="panel">
+                <div class="panel-header">
+                  <h2>投資適格性スコア</h2>
+                  <span class="badge" id="esgGradeBadge">未評価</span>
+                </div>
+                <div class="esg-score-hero">
+                  <strong id="esgTotalScore">--</strong>
+                  <span>ESG Investment Readiness</span>
+                </div>
+                <div class="esg-score-grid" id="esgScoreGrid"></div>
+              </section>
+            </div>
+
+            <section class="panel">
+              <div class="panel-header">
+                <h2>投資家向けサマリー</h2>
+                <span class="badge muted">Readiness Memo</span>
+              </div>
+              <div class="summary-grid" id="esgSummaryGrid"></div>
+            </section>
+          </section>
         </section>
 
         <section class="view" id="results">
           <div class="page-header">
             <div>
               <span class="eyebrow">Dashboard</span>
-              <h1>診断結果ダッシュボード</h1>
-              <p>スコア、組織タイプ、強みとボトルネックをまとめて確認できます。</p>
+              <h1>統合結果ダッシュボード</h1>
+              <p>01の自己診断と02のAIシナリオ結果を合わせて、人的資産、組織OS、well-being、ESG投資適格性を確認できます。</p>
             </div>
-            <button class="primary-button" data-view-target="scenario" type="button">AIシナリオへ</button>
+            <button class="primary-button" data-view-target="recommendations" type="button">提案へ進む</button>
           </div>
 
           <div class="score-grid" id="scoreGrid"></div>
@@ -134,10 +170,10 @@
           <div class="page-header">
             <div>
               <span class="eyebrow">AI Scenario Lab</span>
-              <h1>業界・地域・市場・組織ストーリーを生成して数値化する</h1>
-              <p>診断結果に文脈を重ねて、実践プロジェクトの仮説、関係者、リスク、well-beingインパクト、事業性を評価します。</p>
+              <h1>AIシナリオで実践判断を測る</h1>
+              <p>業界・地域・市場・組織ストーリーを使い、プロジェクト場面での判断を通じて、01の自己診断を補正します。</p>
             </div>
-            <button class="primary-button" data-view-target="esg" type="button">ESG適格性へ</button>
+            <button class="primary-button" data-view-target="results" type="button">結果を見る</button>
           </div>
 
           <div class="scenario-layout">
@@ -212,47 +248,6 @@
                 </div>
               </div>
             </div>
-          </section>
-        </section>
-
-        <section class="view" id="esg">
-          <div class="page-header">
-            <div>
-              <span class="eyebrow">ESG Investment Readiness</span>
-              <h1>ESG投資適格性を評価する</h1>
-              <p>ISSB/IFRS、TCFD、GRIの考え方に沿って、投資家に説明できるサステナビリティ経営・開示・インパクトの準備度を測ります。</p>
-            </div>
-            <button class="primary-button" data-view-target="recommendations" type="button">提案へ進む</button>
-          </div>
-
-          <div class="esg-layout">
-            <section class="panel">
-              <div class="panel-header">
-                <h2>ESG診断</h2>
-                <span class="badge muted">6領域</span>
-              </div>
-              <form id="esgForm" class="assessment-form compact-form"></form>
-            </section>
-
-            <section class="panel">
-              <div class="panel-header">
-                <h2>投資適格性スコア</h2>
-                <span class="badge" id="esgGradeBadge">未評価</span>
-              </div>
-              <div class="esg-score-hero">
-                <strong id="esgTotalScore">--</strong>
-                <span>ESG Investment Readiness</span>
-              </div>
-              <div class="esg-score-grid" id="esgScoreGrid"></div>
-            </section>
-          </div>
-
-          <section class="panel">
-            <div class="panel-header">
-              <h2>投資家向けサマリー</h2>
-              <span class="badge muted">Readiness Memo</span>
-            </div>
-            <div class="summary-grid" id="esgSummaryGrid"></div>
           </section>
         </section>
 

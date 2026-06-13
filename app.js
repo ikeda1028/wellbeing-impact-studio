@@ -104,8 +104,6 @@ const categories = [
   }
 ];
 
-const totalQuestionCount = categories.reduce((sum, category) => sum + category.questions.length, 0);
-
 const esgCategories = [
   {
     id: "esgGovernance",
@@ -174,6 +172,10 @@ const esgCategories = [
     ]
   }
 ];
+
+const totalQuestionCount =
+  categories.reduce((sum, category) => sum + category.questions.length, 0) +
+  esgCategories.reduce((sum, category) => sum + category.questions.length, 0);
 
 const state = {
   round: "before",
@@ -448,7 +450,7 @@ function strongestCategories(scores, limit = 2) {
 }
 
 function answeredTotal() {
-  return Object.keys(currentAnswers()).length;
+  return Object.keys(currentAnswers()).length + Object.keys(state.esgAnswers).length;
 }
 
 function updateCounters() {
@@ -564,6 +566,9 @@ function renderSummary() {
   const type = organizationType(scores);
   const strong = strongestCategories(scores);
   const weak = weakestCategories(scores);
+  const scenario = state.scenario;
+  const esgScore = esgCompositeScore();
+  const esgStatus = esgGrade(esgScore);
   summaryRound.textContent = state.round === "before" ? "Before" : "After";
   summaryGrid.innerHTML = [
     {
@@ -577,6 +582,14 @@ function renderSummary() {
     {
       title: "ボトルネック",
       body: `${weak.map((item) => item.label).join("、")}が次の伸びしろです。教育コンテンツと短期プロジェクトで補強します。`
+    },
+    {
+      title: "AIシナリオ評価",
+      body: scenario ? `AIシナリオ総合指数は${scenario.scores.impactIndex}です。市場適合${scenario.scores.marketFit}、組織実装力${scenario.scores.orgReadiness}、well-beingインパクト${scenario.scores.wellbeingImpact}として評価されています。` : "02のAIシナリオを実行すると、自己診断だけでは見えない実践判断の傾向がここに反映されます。"
+    },
+    {
+      title: "ESG投資適格性",
+      body: `ESG Readinessは${esgScore || "--"}点、判定は「${esgStatus.label}」です。well-beingで生まれる価値を投資家向けの非財務価値として説明する準備度です。`
     }
   ].map((item) => `
     <article class="summary-item">
