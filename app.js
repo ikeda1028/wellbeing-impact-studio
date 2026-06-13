@@ -215,6 +215,7 @@ const growthNarrative = document.querySelector("#growthNarrative");
 const deltaList = document.querySelector("#deltaList");
 const scenarioStageBadge = document.querySelector("#scenarioStageBadge");
 const scenarioChat = document.querySelector("#scenarioChat");
+const scenarioOptions = document.querySelector("#scenarioOptions");
 const scenarioAnswerInput = document.querySelector("#scenarioAnswerInput");
 const submitScenarioAnswerButton = document.querySelector("#submitScenarioAnswerButton");
 const scenarioSampleButton = document.querySelector("#scenarioSampleButton");
@@ -258,27 +259,32 @@ const scenarioFields = [
   {
     id: "industry",
     label: "業界・領域",
-    question: "まず、扱いたい業界・領域を教えてください。例: 地域医療、観光、製造、教育、商店街活性化"
+    question: "まず、扱いたい業界・領域を選んでください。必要なら自由記述で補足できます。",
+    options: ["地域医療・介護", "観光・地域商業", "製造業・現場DX", "教育・探究学習", "農業・食・ローカルブランド", "自治体・地域DX"]
   },
   {
     id: "location",
     label: "場所・組織",
-    question: "次に、会社や活動場所、組織の文脈を教えてください。例: 地方都市の中核病院、温泉街、地方工場、地域高校"
+    question: "次に、会社や活動場所、組織の文脈を選んでください。必要なら自由記述で補足できます。",
+    options: ["地方都市の中核組織", "商店街・中心市街地", "地方工場と協力会社", "地域高校・大学", "自治体と地域団体", "複数拠点の中小企業"]
   },
   {
     id: "market",
     label: "対象者・市場",
-    question: "誰の課題を扱いますか。顧客、受益者、関係者をできるだけ具体的に書いてください。"
+    question: "誰の課題を扱いますか。近いものを選び、必要なら具体名を足してください。",
+    options: ["高齢者家族・介護職・自治体", "若手観光客・地域事業者", "現場リーダー・熟練者・若手社員", "生徒・教員・地元企業", "子育て世帯・地域支援者", "中小企業経営者・従業員"]
   },
   {
     id: "challenge",
     label: "組織内の課題",
-    question: "組織内では、どんな壁や課題がありますか。意思決定、部門間連携、現場負荷、データ不足などを自由に書いてください。"
+    question: "組織内では、どんな壁や課題がありますか。近いものを選び、必要なら補足してください。",
+    options: ["意思決定が管理職に集中している", "部門間の壁があり越境しにくい", "現場が忙しく新しい実験に時間を割けない", "データや根拠が不足して説明できない", "若手の意欲はあるが任せる仕組みがない", "地域や外部人材との接続が弱い"]
   },
   {
     id: "desiredImpact",
     label: "実現したい変化",
-    question: "このプロジェクトで、組織内や地域のwell-beingをどのように高めたいですか。事業成果も含めて書いてください。"
+    question: "このプロジェクトで実現したい変化を選んでください。必要なら事業成果も補足してください。",
+    options: ["従業員の自律性と働きがいを高めたい", "地域のつながりと参加機会を増やしたい", "探究学習を地域課題解決につなげたい", "新規事業として継続収益を作りたい", "人的資本とwell-beingをESG価値として説明したい", "組織内外の協働プロジェクトを増やしたい"]
   }
 ];
 
@@ -1025,6 +1031,14 @@ function submitScenarioAnswer() {
   updateAll();
 }
 
+function selectScenarioOption(value) {
+  if (!scenarioAnswerInput.value.trim()) {
+    scenarioAnswerInput.value = value;
+    return;
+  }
+  scenarioAnswerInput.value = `${scenarioAnswerInput.value.trim()}、${value}`;
+}
+
 function resetScenario() {
   state.scenarioMode = "collecting";
   state.scenarioFieldIndex = 0;
@@ -1259,6 +1273,25 @@ function renderScenario() {
     state.scenarioMode === "collecting" ? "情報収集中" :
       state.scenarioMode === "scenes" ? `場面 ${state.scenarioSceneIndex + 1} / ${scenarioScenes.length}` :
         "完了";
+
+  const currentField = state.scenarioMode === "collecting" ? scenarioCurrentField() : null;
+  if (currentField?.options?.length) {
+    scenarioOptions.innerHTML = `
+      <span>選択肢</span>
+      <div class="option-chip-row">
+        ${currentField.options.map((option) => `<button class="option-chip" type="button" data-scenario-option="${escapeHTML(option)}">${escapeHTML(option)}</button>`).join("")}
+      </div>
+    `;
+  } else if (state.scenarioMode === "scenes") {
+    scenarioOptions.innerHTML = `
+      <span>回答に含めると測定されやすい観点</span>
+      <div class="option-chip-row">
+        ${["問い・仮説", "ヒアリング", "関係者", "小さな実証", "KPI", "リスク", "well-being", "事業性", "ESG開示"].map((option) => `<button class="option-chip" type="button" data-scenario-option="${escapeHTML(option)}">${escapeHTML(option)}</button>`).join("")}
+      </div>
+    `;
+  } else {
+    scenarioOptions.innerHTML = "";
+  }
 
   scenarioChat.innerHTML = state.scenarioMessages.map((message) => `
     <article class="chat-message ${message.role}">
@@ -1617,6 +1650,11 @@ document.querySelector("#resetButton").addEventListener("click", resetCurrentRou
 submitScenarioAnswerButton.addEventListener("click", submitScenarioAnswer);
 scenarioSampleButton.addEventListener("click", scenarioSample);
 resetScenarioButton.addEventListener("click", resetScenario);
+scenarioOptions.addEventListener("click", (event) => {
+  const button = event.target.closest("[data-scenario-option]");
+  if (!button) return;
+  selectScenarioOption(button.dataset.scenarioOption);
+});
 generateImageButton.addEventListener("click", generateScenarioImage);
 downloadImageButton.addEventListener("click", downloadGeneratedImage);
 
