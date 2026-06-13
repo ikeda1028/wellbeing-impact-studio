@@ -1,8 +1,8 @@
 const categories = [
   {
     id: "human",
-    label: "個人の人的資産価値",
-    short: "人的資産",
+    label: "個人の人的資本価値",
+    short: "人的資本",
     description: "課題発見、構想、AI活用、実行、学習の基礎力を測ります。",
     questions: [
       "自分の専門性を、他者や組織の課題解決に結びつけられる",
@@ -535,7 +535,7 @@ function renderScores() {
   const scores = allScores();
   const total = weightedScore(scores);
   const items = [
-    ["総合人的資産", total],
+    ["総合人的資本", total],
     ...categories.map((category) => [category.short, scores[category.id]])
   ];
 
@@ -978,7 +978,7 @@ function buildScenario() {
     experiments: [
       "2週間で関係者5名にヒアリングし、課題の頻度と痛みを数値化する",
       "30日で最小プロトタイプを作り、利用意向と支払い意思を確認する",
-      "90日後に人的資産価値、組織well-being、地域well-being、事業性を再測定する"
+      "90日後に人的資本価値、組織well-being、地域well-being、事業性を再測定する"
     ]
   };
 
@@ -1518,7 +1518,7 @@ function renderRecommendations() {
     },
     {
       title: "次回測定",
-      body: "90日後に同じ診断を行い、人的資産価値とwell-beingインパクトの伸びを比較します。",
+      body: "90日後に同じ診断を行い、人的資本価値とwell-beingインパクトの伸びを比較します。",
       list: [
         "Before / Afterスコア",
         "組織タイプの変化",
@@ -1560,7 +1560,7 @@ function renderGrowth() {
   const delta = afterTotal - beforeTotal;
   growthScore.textContent = delta > 0 ? `+${delta}` : `${delta}`;
   growthBadge.textContent = delta >= 10 ? "大きく成長" : delta > 0 ? "成長中" : "要再設計";
-  growthNarrative.textContent = `総合人的資産価値は${beforeTotal}点から${afterTotal}点に変化しました。伸びた領域を次のプロジェクトに接続し、停滞した領域は教育コンテンツと組織習慣で補強します。`;
+  growthNarrative.textContent = `総合人的資本価値は${beforeTotal}点から${afterTotal}点に変化しました。伸びた領域を次のプロジェクトに接続し、停滞した領域は教育コンテンツと組織習慣で補強します。`;
 
   deltaList.innerHTML = categories.map((category) => {
     const change = after[category.id] - before[category.id];

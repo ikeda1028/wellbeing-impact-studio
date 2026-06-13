@@ -1,6 +1,6 @@
 # Well-being Impact Studio
 
-人的資産価値、探究度数、組織OS、well-being、事業可能性を診断し、AIシナリオとコンセプト画像を生成する静的WebアプリのMVPです。
+人的資本価値、探究度数、組織OS、well-being、事業可能性を診断し、AIシナリオとコンセプト画像を生成する静的WebアプリのMVPです。
 
 ## 公開方法
 
