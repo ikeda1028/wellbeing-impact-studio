@@ -179,50 +179,33 @@
           <div class="scenario-layout">
             <section class="panel">
               <div class="panel-header">
-                <h2>文脈入力</h2>
-                <span class="badge muted">Context</span>
+                <h2>AIシナリオ対話</h2>
+                <span class="badge muted" id="scenarioStageBadge">情報収集中</span>
               </div>
 
-              <div class="context-form">
+              <div class="scenario-chat" id="scenarioChat" aria-live="polite"></div>
+
+              <div class="scenario-answer-box">
                 <label>
-                  業界
-                  <input id="industryInput" type="text" value="地域医療・介護" placeholder="例: 観光、製造、教育、地域医療">
-                </label>
-                <label>
-                  会社・活動場所
-                  <input id="locationInput" type="text" value="地方都市の中核病院と周辺商店街" placeholder="例: 福岡市、地方工場、商店街、大学">
-                </label>
-                <label>
-                  市場・対象者
-                  <input id="marketInput" type="text" value="高齢者家族、介護職、自治体の地域包括ケア担当" placeholder="例: 中小企業、若手社員、子育て世帯">
-                </label>
-                <label>
-                  組織成熟度
-                  <select id="maturityInput">
-                    <option value="early">立ち上げ期</option>
-                    <option value="stable" selected>安定運用期</option>
-                    <option value="change">変革期</option>
-                    <option value="scale">拡大期</option>
-                  </select>
-                </label>
-                <label class="wide-field">
-                  組織内のストーリー
-                  <textarea id="storyInput" rows="6" placeholder="例: 部門ごとの壁があり、現場の課題は見えているがプロジェクト化できていない">部門ごとの壁があり、現場の課題は見えているが、地域や外部人材を巻き込んだプロジェクトに変換できていない。若手には意欲があるが、意思決定は管理職に集中している。</textarea>
+                  あなたの回答
+                  <textarea id="scenarioAnswerInput" rows="5" placeholder="AIからの質問や場面に対して、あなたならどう判断するかを書いてください。"></textarea>
                 </label>
               </div>
 
               <div class="controls-row">
-                <button class="primary-button" id="generateScenarioButton" type="button">シナリオ生成</button>
-                <button class="secondary-button" id="scenarioSampleButton" type="button">別サンプル</button>
+                <button class="primary-button" id="submitScenarioAnswerButton" type="button">回答して進む</button>
+                <button class="secondary-button" id="scenarioSampleButton" type="button">サンプルで進める</button>
+                <button class="secondary-button" id="resetScenarioButton" type="button">シナリオをリセット</button>
               </div>
             </section>
 
             <section class="panel">
               <div class="panel-header">
-                <h2>文脈スコア</h2>
+                <h2>実践判断スコア</h2>
                 <span class="badge" id="scenarioScoreBadge">未生成</span>
               </div>
               <div class="scenario-score-grid" id="scenarioScoreGrid"></div>
+              <div class="scenario-context-list" id="scenarioContextList"></div>
             </section>
           </div>
 

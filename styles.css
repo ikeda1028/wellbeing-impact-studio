@@ -603,6 +603,74 @@ canvas {
   grid-column: 1 / -1;
 }
 
+.scenario-chat {
+  display: grid;
+  gap: 12px;
+  max-height: 520px;
+  overflow: auto;
+  padding: 4px 4px 12px;
+}
+
+.chat-message {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 14px;
+  line-height: 1.75;
+  background: #fff;
+}
+
+.chat-message.ai {
+  background: #f7fbf8;
+}
+
+.chat-message.user {
+  background: #eef6fb;
+  border-color: #cfe0ec;
+}
+
+.chat-message strong {
+  display: block;
+  margin-bottom: 6px;
+}
+
+.scenario-answer-box {
+  margin-top: 12px;
+}
+
+.scenario-answer-box label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.scenario-context-list {
+  display: grid;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.context-chip {
+  display: grid;
+  gap: 3px;
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
+.context-chip span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.context-chip strong {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .scenario-score strong {
   font-size: 32px;
   color: var(--green);

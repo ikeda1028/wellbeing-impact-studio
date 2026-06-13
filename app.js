@@ -184,6 +184,18 @@ const state = {
     after: {}
   },
   esgAnswers: {},
+  scenarioMode: "collecting",
+  scenarioFieldIndex: 0,
+  scenarioSceneIndex: 0,
+  scenarioContext: {
+    industry: "",
+    location: "",
+    market: "",
+    challenge: "",
+    desiredImpact: ""
+  },
+  scenarioResponses: [],
+  scenarioMessages: [],
   scenario: null
 };
 
@@ -201,15 +213,15 @@ const growthScore = document.querySelector("#growthScore");
 const growthBadge = document.querySelector("#growthBadge");
 const growthNarrative = document.querySelector("#growthNarrative");
 const deltaList = document.querySelector("#deltaList");
-const industryInput = document.querySelector("#industryInput");
-const locationInput = document.querySelector("#locationInput");
-const marketInput = document.querySelector("#marketInput");
-const maturityInput = document.querySelector("#maturityInput");
-const storyInput = document.querySelector("#storyInput");
-const generateScenarioButton = document.querySelector("#generateScenarioButton");
+const scenarioStageBadge = document.querySelector("#scenarioStageBadge");
+const scenarioChat = document.querySelector("#scenarioChat");
+const scenarioAnswerInput = document.querySelector("#scenarioAnswerInput");
+const submitScenarioAnswerButton = document.querySelector("#submitScenarioAnswerButton");
 const scenarioSampleButton = document.querySelector("#scenarioSampleButton");
+const resetScenarioButton = document.querySelector("#resetScenarioButton");
 const scenarioScoreBadge = document.querySelector("#scenarioScoreBadge");
 const scenarioScoreGrid = document.querySelector("#scenarioScoreGrid");
+const scenarioContextList = document.querySelector("#scenarioContextList");
 const scenarioOutput = document.querySelector("#scenarioOutput");
 const generatedImageCanvas = document.querySelector("#generatedImageCanvas");
 const imagePromptText = document.querySelector("#imagePromptText");
@@ -241,6 +253,52 @@ function escapeHTML(value) {
     .replaceAll('"', "&quot;")
     .replaceAll("'", "&#039;");
 }
+
+const scenarioFields = [
+  {
+    id: "industry",
+    label: "業界・領域",
+    question: "まず、扱いたい業界・領域を教えてください。例: 地域医療、観光、製造、教育、商店街活性化"
+  },
+  {
+    id: "location",
+    label: "場所・組織",
+    question: "次に、会社や活動場所、組織の文脈を教えてください。例: 地方都市の中核病院、温泉街、地方工場、地域高校"
+  },
+  {
+    id: "market",
+    label: "対象者・市場",
+    question: "誰の課題を扱いますか。顧客、受益者、関係者をできるだけ具体的に書いてください。"
+  },
+  {
+    id: "challenge",
+    label: "組織内の課題",
+    question: "組織内では、どんな壁や課題がありますか。意思決定、部門間連携、現場負荷、データ不足などを自由に書いてください。"
+  },
+  {
+    id: "desiredImpact",
+    label: "実現したい変化",
+    question: "このプロジェクトで、組織内や地域のwell-beingをどのように高めたいですか。事業成果も含めて書いてください。"
+  }
+];
+
+const scenarioScenes = [
+  {
+    title: "場面1: 問いを立てる",
+    prompt: "現場には課題感がありますが、管理職は慎重で、地域側も何を求めているか曖昧です。あなたは最初の2週間で何をしますか。誰に何を聞き、どんな問いに絞りますか。",
+    focus: "探究度数・課題設定・情報収集"
+  },
+  {
+    title: "場面2: 関係者を巻き込む",
+    prompt: "ヒアリングで課題は見えてきました。一方で、現場メンバーは忙しく、管理職は成果の見通しを求め、地域関係者は慎重です。あなたはどう合意形成し、どのような小さな実証を設計しますか。",
+    focus: "組織調整・プロジェクト型成熟度・well-being"
+  },
+  {
+    title: "場面3: 事業化と説明責任",
+    prompt: "実証に一定の手応えが出ました。次は継続資金、事業性、ESG/非財務価値の説明が必要です。あなたはどのKPIを置き、どんなリスクを管理し、投資家や外部関係者にどう説明しますか。",
+    focus: "事業性・ESG説明力・インパクト測定"
+  }
+];
 
 function renderForm() {
   form.innerHTML = categories.map((category) => {
@@ -699,13 +757,123 @@ function contextSignals(context) {
   };
 }
 
+function scenarioCurrentField() {
+  return scenarioFields[state.scenarioFieldIndex];
+}
+
+function ensureScenarioStarted() {
+  if (!state.scenarioMessages.length) {
+    state.scenarioMessages.push({
+      role: "ai",
+      text: "これからAI実践シナリオを作ります。必要な情報が揃うまで順番に質問します。回答は短くても大丈夫です。",
+      meta: scenarioFields[0].question
+    });
+  }
+}
+
+function scenarioContextComplete() {
+  return scenarioFields.every((field) => state.scenarioContext[field.id]?.trim().length >= 2);
+}
+
+function scenarioContextText() {
+  const context = state.scenarioContext;
+  return `${context.industry} ${context.location} ${context.market} ${context.challenge} ${context.desiredImpact}`;
+}
+
+function startScenarioScenes() {
+  state.scenarioMode = "scenes";
+  state.scenarioSceneIndex = 0;
+  state.scenarioMessages.push({
+    role: "ai",
+    text: "必要な情報が揃いました。ここから物語が進みます。各場面で、あなたならどう判断するかを自由記述で答えてください。",
+    meta: buildScenePrompt(0)
+  });
+  buildScenario();
+}
+
+function buildScenePrompt(index) {
+  const scene = scenarioScenes[index];
+  if (!scene) return "すべての場面が完了しました。結果画面で診断との差分を確認してください。";
+  const context = state.scenarioContext;
+  return `${scene.title}\n${scene.prompt}\n\n文脈: ${context.industry} / ${context.location} / ${context.market}\n評価焦点: ${scene.focus}`;
+}
+
+function scoreScenarioResponse(text, sceneIndex) {
+  const contains = (words) => words.some((word) => text.includes(word));
+  const score = {
+    inquiry: 0,
+    org: 0,
+    wellbeing: 0,
+    business: 0,
+    esg: 0
+  };
+
+  if (contains(["問い", "仮説", "なぜ", "課題", "リサーチ", "調査", "比較", "分析", "データ"])) score.inquiry += 18;
+  if (contains(["ヒアリング", "インタビュー", "現場", "住民", "顧客", "当事者", "一次情報"])) score.inquiry += 18;
+  if (contains(["整理", "優先", "検証", "実験", "プロトタイプ", "小さく"])) score.inquiry += 12;
+
+  if (contains(["管理職", "上司", "合意", "役割", "権限", "チーム", "部門", "巻き込"])) score.org += 18;
+  if (contains(["目的", "成果指標", "90日", "振り返り", "会議", "責任者"])) score.org += 16;
+  if (contains(["心理的安全", "負荷", "孤立", "対話", "支援", "信頼"])) score.org += 12;
+
+  if (contains(["well-being", "幸福", "暮らし", "つながり", "包摂", "弱い立場", "地域", "参加"])) score.wellbeing += 22;
+  if (contains(["従業員", "働きがい", "安心", "健康", "学習", "挑戦"])) score.wellbeing += 14;
+
+  if (contains(["収益", "価格", "費用", "コスト", "資金", "顧客", "支払い", "継続", "事業"])) score.business += 22;
+  if (contains(["KPI", "指標", "売上", "利用", "継続率", "効果", "ROI"])) score.business += 16;
+
+  if (contains(["ESG", "開示", "投資家", "ガバナンス", "リスク", "環境", "気候", "人権", "KPI", "説明責任"])) score.esg += 22;
+  if (contains(["測定", "目標", "根拠", "レポート", "透明性", "監督", "管理"])) score.esg += 14;
+
+  if (text.length > 80) {
+    score.inquiry += 6;
+    score.org += 4;
+    score.wellbeing += 4;
+    score.business += 4;
+    score.esg += 4;
+  }
+
+  if (sceneIndex === 0) score.inquiry += 12;
+  if (sceneIndex === 1) {
+    score.org += 12;
+    score.wellbeing += 8;
+  }
+  if (sceneIndex === 2) {
+    score.business += 12;
+    score.esg += 12;
+  }
+
+  return Object.fromEntries(Object.entries(score).map(([key, value]) => [key, clamp(value, 0, 100)]));
+}
+
+function aggregateScenarioScores() {
+  if (!state.scenarioResponses.length) {
+    return {
+      inquiry: 0,
+      org: 0,
+      wellbeing: 0,
+      business: 0,
+      esg: 0
+    };
+  }
+
+  const total = state.scenarioResponses.reduce((sum, item) => {
+    Object.entries(item.score).forEach(([key, value]) => {
+      sum[key] = (sum[key] || 0) + value;
+    });
+    return sum;
+  }, {});
+
+  return Object.fromEntries(Object.entries(total).map(([key, value]) => [key, clamp(value / state.scenarioResponses.length)]));
+}
+
 function buildScenario() {
   const context = {
-    industry: industryInput.value.trim() || "未設定の業界",
-    location: locationInput.value.trim() || "未設定の場所",
-    market: marketInput.value.trim() || "未設定の市場",
-    maturity: maturityInput.value,
-    story: storyInput.value.trim() || "組織内のストーリーはまだ入力されていません。"
+    industry: state.scenarioContext.industry || "未設定の業界",
+    location: state.scenarioContext.location || "未設定の場所",
+    market: state.scenarioContext.market || "未設定の市場",
+    maturity: "change",
+    story: `${state.scenarioContext.challenge || "組織課題は未設定です。"} ${state.scenarioContext.desiredImpact || "実現したい変化は未設定です。"}`
   };
   const scores = allScores();
   const total = weightedScore(scores);
@@ -714,12 +882,13 @@ function buildScenario() {
   const strong = strongestCategories(scores, 2);
   const signals = contextSignals(context);
   const maturity = maturityModifier(context.maturity);
+  const scenarioJudgement = aggregateScenarioScores();
 
   const marketFit = clamp(
     scores.business * 0.35 +
     scores.regional * 0.25 +
     scores.inquiry * 0.12 +
-    total * 0.08 +
+    scenarioJudgement.inquiry * 0.08 +
     (signals.care || signals.education || signals.manufacturing ? 8 : 2) +
     signals.lengthBonus +
     maturity.business
@@ -728,7 +897,7 @@ function buildScenario() {
     scores.autonomy * 0.27 +
     scores.project * 0.27 +
     scores.leadership * 0.2 +
-    scores.orgWellbeing * 0.18 +
+    scenarioJudgement.org * 0.18 +
     (signals.collaboration ? 7 : 0) -
     (signals.friction ? 5 : 0) +
     maturity.org
@@ -737,7 +906,7 @@ function buildScenario() {
     scores.orgWellbeing * 0.24 +
     scores.regional * 0.34 +
     scores.human * 0.1 +
-    scores.inquiry * 0.06 +
+    scenarioJudgement.wellbeing * 0.16 +
     (signals.regional ? 10 : 0) +
     (signals.care || signals.education ? 7 : 0) +
     signals.lengthBonus
@@ -745,8 +914,8 @@ function buildScenario() {
   const businessPotential = clamp(
     scores.business * 0.38 +
     marketFit * 0.3 +
-    orgReadiness * 0.18 +
-    scores.inquiry * 0.08 +
+    scenarioJudgement.business * 0.2 +
+    orgReadiness * 0.08 +
     (signals.ai ? 6 : 0) +
     maturity.business
   );
@@ -761,11 +930,12 @@ function buildScenario() {
     orgReadiness * 0.24 +
     wellbeingImpact * 0.26 +
     businessPotential * 0.2 +
-    (100 - executionRisk) * 0.1
+    scenarioJudgement.esg * 0.1
   );
 
   state.scenario = {
     context,
+    judgement: scenarioJudgement,
     scores: {
       marketFit,
       orgReadiness,
@@ -775,7 +945,7 @@ function buildScenario() {
       impactIndex
     },
     title: `${context.location}における${context.industry}のwell-being事業化シナリオ`,
-    story: `${context.market}が抱える未充足の課題を起点に、${type.label}への移行を進めながら、現場発の小さなプロジェクトを立ち上げます。${strong.map((item) => item.short).join("と")}を強みに、${weak.map((item) => item.short).join("と")}を補強することで、組織内の実行力と地域well-beingの両方を高めます。`,
+    story: `${context.market}が抱える未充足の課題を起点に、${type.label}への移行を進めながら、現場発の小さなプロジェクトを立ち上げます。${strong.map((item) => item.short).join("と")}を強みに、${weak.map((item) => item.short).join("と")}を補強します。あなたの場面判断では、探究${scenarioJudgement.inquiry}、組織調整${scenarioJudgement.org}、well-being${scenarioJudgement.wellbeing}、事業性${scenarioJudgement.business}、ESG説明力${scenarioJudgement.esg}として測定されています。`,
     hypothesis: [
       `${context.market}に対して、困りごとの可視化と支援導線を一体化したサービスを検証する`,
       `組織内では、管理職承認に依存しすぎない90日プロジェクトとして運用する`,
@@ -803,6 +973,75 @@ function buildScenario() {
   renderScenario();
   generateScenarioImage();
   renderRecommendations();
+}
+
+function submitScenarioAnswer() {
+  ensureScenarioStarted();
+  const answer = scenarioAnswerInput.value.trim();
+  if (!answer) return;
+
+  state.scenarioMessages.push({ role: "user", text: answer });
+
+  if (state.scenarioMode === "collecting") {
+    const field = scenarioCurrentField();
+    state.scenarioContext[field.id] = answer;
+    state.scenarioFieldIndex += 1;
+
+    if (scenarioContextComplete()) {
+      startScenarioScenes();
+    } else {
+      const nextField = scenarioCurrentField();
+      state.scenarioMessages.push({
+        role: "ai",
+        text: "ありがとうございます。次の情報を教えてください。",
+        meta: nextField.question
+      });
+    }
+  } else if (state.scenarioMode === "scenes") {
+    const sceneIndex = state.scenarioSceneIndex;
+    const scene = scenarioScenes[sceneIndex];
+    const score = scoreScenarioResponse(answer, sceneIndex);
+    state.scenarioResponses.push({ scene: scene.title, answer, score });
+    state.scenarioSceneIndex += 1;
+    buildScenario();
+
+    if (state.scenarioSceneIndex < scenarioScenes.length) {
+      state.scenarioMessages.push({
+        role: "ai",
+        text: "判断を測定しました。次の場面に進みます。",
+        meta: buildScenePrompt(state.scenarioSceneIndex)
+      });
+    } else {
+      state.scenarioMode = "complete";
+      state.scenarioMessages.push({
+        role: "ai",
+        text: "AI実践シナリオは完了です。結果画面で、01の自己診断と02の実践判断の統合結果を確認できます。",
+        meta: "必要なら、回答を見直してもう一度シナリオを実行できます。"
+      });
+    }
+  }
+
+  scenarioAnswerInput.value = "";
+  updateAll();
+}
+
+function resetScenario() {
+  state.scenarioMode = "collecting";
+  state.scenarioFieldIndex = 0;
+  state.scenarioSceneIndex = 0;
+  state.scenarioContext = {
+    industry: "",
+    location: "",
+    market: "",
+    challenge: "",
+    desiredImpact: ""
+  };
+  state.scenarioResponses = [];
+  state.scenarioMessages = [];
+  state.scenario = null;
+  scenarioAnswerInput.value = "";
+  ensureScenarioStarted();
+  updateAll();
 }
 
 function buildImagePrompt() {
@@ -1015,14 +1254,40 @@ function generateScenarioImage() {
 }
 
 function renderScenario() {
+  ensureScenarioStarted();
+  scenarioStageBadge.textContent =
+    state.scenarioMode === "collecting" ? "情報収集中" :
+      state.scenarioMode === "scenes" ? `場面 ${state.scenarioSceneIndex + 1} / ${scenarioScenes.length}` :
+        "完了";
+
+  scenarioChat.innerHTML = state.scenarioMessages.map((message) => `
+    <article class="chat-message ${message.role}">
+      <strong>${message.role === "ai" ? "AIシミュレーター" : "あなた"}</strong>
+      <p>${escapeHTML(message.text).replaceAll("\n", "<br>")}</p>
+      ${message.meta ? `<p>${escapeHTML(message.meta).replaceAll("\n", "<br>")}</p>` : ""}
+    </article>
+  `).join("");
+  scenarioChat.scrollTop = scenarioChat.scrollHeight;
+
+  const contextItems = scenarioFields.map((field) => [
+    field.label,
+    state.scenarioContext[field.id] || "未入力"
+  ]);
+  scenarioContextList.innerHTML = contextItems.map(([label, value]) => `
+    <div class="context-chip">
+      <span>${label}</span>
+      <strong>${escapeHTML(value)}</strong>
+    </div>
+  `).join("");
+
   if (!state.scenario) {
     scenarioScoreBadge.textContent = "未生成";
     scenarioScoreGrid.innerHTML = [
-      ["市場適合", "--"],
-      ["組織実装力", "--"],
-      ["WBインパクト", "--"],
-      ["事業可能性", "--"],
-      ["実行リスク", "--"],
+      ["探究", "--"],
+      ["組織調整", "--"],
+      ["WB感度", "--"],
+      ["事業性", "--"],
+      ["ESG説明", "--"],
       ["総合指数", "--"]
     ].map(([label, value]) => `
       <article class="scenario-score">
@@ -1038,13 +1303,14 @@ function renderScenario() {
 
   const scenario = state.scenario;
   const scores = scenario.scores;
+  const judgement = scenario.judgement;
   scenarioScoreBadge.textContent = `総合 ${scores.impactIndex}`;
   const scoreItems = [
-    ["市場適合", scores.marketFit],
-    ["組織実装力", scores.orgReadiness],
-    ["WBインパクト", scores.wellbeingImpact],
-    ["事業可能性", scores.businessPotential],
-    ["実行リスク", scores.executionRisk],
+    ["探究", judgement.inquiry],
+    ["組織調整", judgement.org],
+    ["WB感度", judgement.wellbeing],
+    ["事業性", judgement.business],
+    ["ESG説明", judgement.esg],
     ["総合指数", scores.impactIndex]
   ];
 
@@ -1067,6 +1333,11 @@ function renderScenario() {
       title: "検証仮説",
       body: `${escapeHTML(scenario.context.industry)} / ${escapeHTML(scenario.context.location)} / ${escapeHTML(maturityLabel(scenario.context.maturity))}`,
       list: scenario.hypothesis.map(escapeHTML)
+    },
+    {
+      title: "場面回答の測定",
+      body: `${state.scenarioResponses.length} / ${scenarioScenes.length}場面を回答済みです。`,
+      list: state.scenarioResponses.map((item) => `${item.scene}: 探究${item.score.inquiry} / 組織${item.score.org} / WB${item.score.wellbeing} / 事業${item.score.business} / ESG${item.score.esg}`).map(escapeHTML)
     },
     {
       title: "主要ステークホルダー",
@@ -1272,36 +1543,36 @@ function sampleEsgAnswers() {
 }
 
 function scenarioSample() {
-  const samples = [
-    {
-      industry: "観光・地域商業",
-      location: "温泉街と周辺の中小旅館",
-      market: "若手観光客、旅館スタッフ、地域商店主",
-      maturity: "change",
-      story: "観光客は戻りつつあるが、地域内の連携が弱く、旅館と商店街が別々に集客している。若手スタッフはSNSやAI活用に関心があるが、既存業務に追われて実験が進まない。"
-    },
-    {
-      industry: "製造業・現場DX",
-      location: "地方工場と協力会社ネットワーク",
-      market: "現場リーダー、熟練技能者、若手作業者",
-      maturity: "stable",
-      story: "品質改善のノウハウが熟練者に集中しており、若手への継承が属人的になっている。部門ごとの改善活動はあるが、データとAIを使った横断プロジェクトにはなっていない。"
-    },
-    {
-      industry: "教育・探究学習",
-      location: "地域高校と地元企業",
-      market: "高校生、教員、地元企業、自治体",
-      maturity: "early",
-      story: "探究学習のテーマは増えているが、地域企業の実課題や事業化までつながりにくい。教員の負荷も高く、外部人材を巻き込む仕組みが不足している。"
-    }
+  state.scenarioMode = "complete";
+  state.scenarioFieldIndex = scenarioFields.length;
+  state.scenarioSceneIndex = scenarioScenes.length;
+  state.scenarioContext = {
+    industry: "教育・探究学習",
+    location: "地域高校と地元企業",
+    market: "高校生、教員、地元企業、自治体",
+    challenge: "探究テーマは増えているが、地域企業の実課題や事業化までつながりにくい。教員の負荷も高く、外部人材を巻き込む仕組みが不足している。",
+    desiredImpact: "高校生の探究力を高め、地域企業の課題解決と若者の地域参加を増やし、継続できる教育事業にしたい。"
+  };
+  const answers = [
+    "最初の2週間は、生徒、教員、地元企業、自治体にヒアリングし、なぜ探究が事業化につながらないのか問いを立てます。既存事例と地域データを調査し、課題を比較分析して優先テーマを絞ります。",
+    "教員の負荷を増やさないよう、役割と責任者を明確にした90日プロジェクトを作ります。管理職、企業、地域コーディネーターを巻き込み、小さなプロトタイプを実験して振り返ります。",
+    "KPIは参加生徒数、地域企業の課題解決件数、継続率、満足度、well-being変化、収益とコストにします。リスクは教員負荷、個人情報、成果の偏りで、投資家にはESG、人的資本、地域インパクトとして開示します。"
   ];
-  const sample = samples[Math.floor(Math.random() * samples.length)];
-  industryInput.value = sample.industry;
-  locationInput.value = sample.location;
-  marketInput.value = sample.market;
-  maturityInput.value = sample.maturity;
-  storyInput.value = sample.story;
+  state.scenarioResponses = answers.map((answer, index) => ({
+    scene: scenarioScenes[index].title,
+    answer,
+    score: scoreScenarioResponse(answer, index)
+  }));
+  state.scenarioMessages = [
+    { role: "ai", text: "サンプルの基本情報を入力しました。", meta: "3つの場面回答もサンプルで測定しています。" },
+    ...answers.flatMap((answer, index) => [
+      { role: "ai", text: buildScenePrompt(index) },
+      { role: "user", text: answer }
+    ]),
+    { role: "ai", text: "AI実践シナリオは完了です。結果画面で統合結果を確認できます。" }
+  ];
   buildScenario();
+  updateAll();
 }
 
 function downloadGeneratedImage() {
@@ -1343,11 +1614,13 @@ roundSelect.addEventListener("change", (event) => {
 
 document.querySelector("#sampleButton").addEventListener("click", sampleAnswers);
 document.querySelector("#resetButton").addEventListener("click", resetCurrentRound);
-generateScenarioButton.addEventListener("click", buildScenario);
+submitScenarioAnswerButton.addEventListener("click", submitScenarioAnswer);
 scenarioSampleButton.addEventListener("click", scenarioSample);
+resetScenarioButton.addEventListener("click", resetScenario);
 generateImageButton.addEventListener("click", generateScenarioImage);
 downloadImageButton.addEventListener("click", downloadGeneratedImage);
 
 renderForm();
 renderEsgForm();
+ensureScenarioStarted();
 updateAll();
