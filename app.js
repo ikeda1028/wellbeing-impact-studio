@@ -619,6 +619,21 @@ function organizationStats(round = state.round) {
     members.reduce((sum, member) => sum + answeredCountForProfile(member, round), 0) /
     Math.max(1, members.length * totalQuestionCount) * 100
   );
+  const categorySpread = categories.map((category) => {
+    const values = scoredMembers.map((item) => item.scores[category.id]);
+    const averageValue = values.length ? Math.round(values.reduce((sum, value) => sum + value, 0) / values.length) : 0;
+    const stdev = values.length > 1
+      ? Math.sqrt(values.reduce((sum, value) => sum + Math.pow(value - averageValue, 2), 0) / values.length)
+      : 0;
+    return {
+      id: category.id,
+      label: category.short,
+      average: averageValue,
+      stdev: Math.round(stdev),
+      min: values.length ? Math.min(...values) : 0,
+      max: values.length ? Math.max(...values) : 0
+    };
+  }).sort((a, b) => b.stdev - a.stdev);
 
   return {
     members,
@@ -627,7 +642,8 @@ function organizationStats(round = state.round) {
     average,
     variance: Math.round(variance),
     consensus,
-    coverage
+    coverage,
+    categorySpread
   };
 }
 
@@ -664,7 +680,7 @@ function renderOrganizationPanel() {
     ["組織人的資本価値", stats.average],
     ["合意度", stats.consensus],
     ["回答カバー率", `${stats.coverage}%`],
-    ["ばらつき", stats.variance],
+    ["総合ばらつき", stats.variance],
     ["組織タイプ", type.label]
   ].map(([label, value]) => `
     <article class="org-stat-card">
@@ -674,6 +690,24 @@ function renderOrganizationPanel() {
   `).join("");
 
   memberTable.innerHTML = `
+    <h3 class="org-table-title">カテゴリ別ばらつき</h3>
+    <div class="spread-table" aria-label="カテゴリ別ばらつき">
+      <div class="spread-row spread-row-head">
+        <span>カテゴリ</span>
+        <span>平均</span>
+        <span>ばらつき</span>
+        <span>最小-最大</span>
+      </div>
+      ${stats.categorySpread.map((item) => `
+        <div class="spread-row">
+          <strong>${item.label}</strong>
+          <span>${item.average || "--"}</span>
+          <span>${item.stdev}</span>
+          <span>${item.min || "--"}-${item.max || "--"}</span>
+        </div>
+      `).join("")}
+    </div>
+    <h3 class="org-table-title">メンバー別スコア</h3>
     <div class="member-row member-row-head">
       <span>回答者</span>
       <span>役割</span>

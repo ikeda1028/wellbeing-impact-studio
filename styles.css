@@ -424,10 +424,16 @@ textarea {
 
 .member-table {
   display: grid;
-  gap: 6px;
+  gap: 12px;
 }
 
-.member-row {
+.org-table-title {
+  margin: 8px 0 0;
+  font-size: 15px;
+}
+
+.member-row,
+.spread-row {
   display: grid;
   grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 80px 120px;
   gap: 10px;
@@ -439,13 +445,20 @@ textarea {
   font-size: 13px;
 }
 
-.member-row-head {
+.spread-table {
+  display: grid;
+  gap: 6px;
+}
+
+.member-row-head,
+.spread-row-head {
   background: #edf4f0;
   color: var(--muted);
   font-weight: 800;
 }
 
-.member-row strong {
+.member-row strong,
+.spread-row strong {
   color: var(--green);
 }
 
@@ -996,7 +1009,8 @@ canvas {
     grid-template-columns: 1fr;
   }
 
-  .member-row {
+  .member-row,
+  .spread-row {
     grid-template-columns: 1fr;
   }
 
