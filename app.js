@@ -673,6 +673,64 @@ function renderModeControls() {
 let coverFrame = 0;
 const coverPointer = { x: 0, y: 0, active: false, hovered: "" };
 const coverInfluence = {};
+const coverNodeState = {};
+const coverDrag = { active: false, label: "" };
+
+function baseCoverNodes(scores, esgScore) {
+  return [
+    { label: "人的資本", value: scores.human || 56, x: 170, y: 160, color: "#1e7d5b" },
+    { label: "組織OS", value: Math.round(((scores.autonomy || 50) + (scores.project || 50) + (scores.leadership || 50)) / 3), x: 390, y: 112, color: "#1f8a99" },
+    { label: "地域WB", value: scores.regional || 52, x: 570, y: 245, color: "#2d68b1" },
+    { label: "事業性", value: scores.business || 50, x: 420, y: 395, color: "#bd7b22" },
+    { label: "ESG", value: esgScore || 54, x: 190, y: 340, color: "#b85353" }
+  ];
+}
+
+function updateCoverNodePhysics(baseNodes) {
+  const dragged = coverDrag.active ? coverNodeState[coverDrag.label] : null;
+  const draggedBase = coverDrag.active ? baseNodes.find((item) => item.label === coverDrag.label) : null;
+
+  baseNodes.forEach((base) => {
+    if (!coverNodeState[base.label]) {
+      coverNodeState[base.label] = { x: base.x, y: base.y, vx: 0, vy: 0 };
+    }
+  });
+
+  baseNodes.forEach((base) => {
+    const node = coverNodeState[base.label];
+    let targetX = base.x;
+    let targetY = base.y;
+    let stiffness = 0.045;
+    let damping = 0.84;
+
+    if (coverDrag.active && coverDrag.label === base.label) {
+      targetX = coverPointer.x;
+      targetY = coverPointer.y;
+      stiffness = 0.18;
+      damping = 0.72;
+    } else if (dragged && draggedBase) {
+      const dragDx = coverPointer.x - draggedBase.x;
+      const dragDy = coverPointer.y - draggedBase.y;
+      const baseDistance = Math.hypot(base.x - draggedBase.x, base.y - draggedBase.y);
+      const pull = Math.max(0, 1 - baseDistance / 430) * 0.42;
+      targetX = base.x + dragDx * pull;
+      targetY = base.y + dragDy * pull;
+      stiffness = 0.055;
+      damping = 0.82;
+    }
+
+    node.vx = (node.vx + (targetX - node.x) * stiffness) * damping;
+    node.vy = (node.vy + (targetY - node.y) * stiffness) * damping;
+    node.x = Math.max(76, Math.min(684, node.x + node.vx));
+    node.y = Math.max(76, Math.min(444, node.y + node.vy));
+  });
+
+  return baseNodes.map((base) => ({
+    ...base,
+    x: coverNodeState[base.label].x,
+    y: coverNodeState[base.label].y
+  }));
+}
 
 function drawCoverCanvas() {
   if (!coverCanvas) return;
@@ -693,13 +751,7 @@ function drawCoverCanvas() {
   drawRoundedRect(ctx, 18, 18, width - 36, height - 36, 26);
   ctx.fill();
 
-  const nodes = [
-    { label: "人的資本", value: scores.human || 56, x: 170, y: 160, color: "#1e7d5b" },
-    { label: "組織OS", value: Math.round(((scores.autonomy || 50) + (scores.project || 50) + (scores.leadership || 50)) / 3), x: 390, y: 112, color: "#1f8a99" },
-    { label: "地域WB", value: scores.regional || 52, x: 570, y: 245, color: "#2d68b1" },
-    { label: "事業性", value: scores.business || 50, x: 420, y: 395, color: "#bd7b22" },
-    { label: "ESG", value: esgScore || 54, x: 190, y: 340, color: "#b85353" }
-  ];
+  const nodes = updateCoverNodePhysics(baseCoverNodes(scores, esgScore));
 
   nodes.forEach((node) => {
     if (coverInfluence[node.label] === undefined) coverInfluence[node.label] = 0;
@@ -760,7 +812,7 @@ function drawCoverCanvas() {
 function animateCoverCanvas() {
   coverPointer.hovered = "";
   drawCoverCanvas();
-  if (coverCanvas) coverCanvas.style.cursor = coverPointer.hovered ? "pointer" : "default";
+  if (coverCanvas) coverCanvas.style.cursor = coverDrag.active ? "grabbing" : coverPointer.hovered ? "grab" : "default";
   requestAnimationFrame(animateCoverCanvas);
 }
 
@@ -770,6 +822,28 @@ function updateCoverPointer(event) {
   coverPointer.x = ((event.clientX - rect.left) / rect.width) * coverCanvas.width;
   coverPointer.y = ((event.clientY - rect.top) / rect.height) * coverCanvas.height;
   coverPointer.active = true;
+}
+
+function nearestCoverNode() {
+  let nearest = null;
+  Object.entries(coverNodeState).forEach(([label, node]) => {
+    const distance = Math.hypot(coverPointer.x - node.x, coverPointer.y - node.y);
+    if (!nearest || distance < nearest.distance) nearest = { label, distance };
+  });
+  return nearest && nearest.distance < 120 ? nearest.label : "";
+}
+
+function startCoverDrag(event) {
+  updateCoverPointer(event);
+  const label = nearestCoverNode();
+  if (!label) return;
+  coverDrag.active = true;
+  coverDrag.label = label;
+}
+
+function stopCoverDrag() {
+  coverDrag.active = false;
+  coverDrag.label = "";
 }
 
 function renderOrganizationPanel() {
@@ -2144,16 +2218,20 @@ coverStartButton.addEventListener("click", () => {
   document.querySelector(".page-header")?.scrollIntoView({ behavior: "smooth", block: "start" });
 });
 coverCanvas.addEventListener("mousemove", updateCoverPointer);
+coverCanvas.addEventListener("mousedown", startCoverDrag);
+window.addEventListener("mouseup", stopCoverDrag);
 coverCanvas.addEventListener("mouseleave", () => {
-  coverPointer.active = false;
+  if (!coverDrag.active) coverPointer.active = false;
   coverPointer.hovered = "";
 });
 coverCanvas.addEventListener("touchstart", (event) => {
   updateCoverPointer(event.touches[0]);
+  startCoverDrag(event.touches[0]);
 }, { passive: true });
 coverCanvas.addEventListener("touchmove", (event) => {
   updateCoverPointer(event.touches[0]);
 }, { passive: true });
+window.addEventListener("touchend", stopCoverDrag);
 
 renderForm();
 renderEsgForm();
