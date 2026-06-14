@@ -178,6 +178,19 @@ const totalQuestionCount =
   esgCategories.reduce((sum, category) => sum + category.questions.length, 0);
 
 const state = {
+  assessmentMode: "individual",
+  organization: {
+    activeMemberId: "member_1",
+    members: [
+      {
+        id: "member_1",
+        name: "回答者 1",
+        role: "メンバー",
+        answers: { before: {}, after: {} },
+        esgAnswers: {}
+      }
+    ]
+  },
   round: "before",
   answers: {
     before: {},
@@ -200,9 +213,19 @@ const state = {
 };
 
 const form = document.querySelector("#assessmentForm");
+const assessmentModeSelect = document.querySelector("#assessmentModeSelect");
 const roundSelect = document.querySelector("#roundSelect");
+const memberSelect = document.querySelector("#memberSelect");
+const memberNameInput = document.querySelector("#memberNameInput");
+const memberRoleInput = document.querySelector("#memberRoleInput");
+const addMemberButton = document.querySelector("#addMemberButton");
+const activeMemberBadge = document.querySelector("#activeMemberBadge");
 const answeredCount = document.querySelector("#answeredCount");
 const scoreGrid = document.querySelector("#scoreGrid");
+const organizationPanel = document.querySelector("#organizationPanel");
+const organizationModeBadge = document.querySelector("#organizationModeBadge");
+const organizationGrid = document.querySelector("#organizationGrid");
+const memberTable = document.querySelector("#memberTable");
 const orgTypeBadge = document.querySelector("#orgTypeBadge");
 const matrixDot = document.querySelector("#matrixDot");
 const summaryGrid = document.querySelector("#summaryGrid");
@@ -239,8 +262,20 @@ function questionKey(categoryId, questionIndex) {
   return `${categoryId}_${questionIndex}`;
 }
 
+function activeMember() {
+  return state.organization.members.find((member) => member.id === state.organization.activeMemberId) || state.organization.members[0];
+}
+
+function currentProfile() {
+  return state.assessmentMode === "organization" ? activeMember() : state;
+}
+
 function currentAnswers() {
-  return state.answers[state.round];
+  return currentProfile().answers[state.round];
+}
+
+function currentEsgAnswers() {
+  return currentProfile().esgAnswers;
 }
 
 function clamp(value, min = 0, max = 100) {
@@ -357,7 +392,11 @@ function renderForm() {
 }
 
 function categoryScore(category, round = state.round) {
-  const answers = state.answers[round];
+  return categoryScoreForProfile(category, currentProfile(), round);
+}
+
+function categoryScoreForProfile(category, profile, round = state.round) {
+  const answers = profile.answers[round];
   const values = category.questions
     .map((_, index) => answers[questionKey(category.id, index)])
     .filter(Boolean);
@@ -374,7 +413,7 @@ function renderEsgForm() {
   esgForm.innerHTML = esgCategories.map((category) => {
     const questions = category.questions.map((question, index) => {
       const key = esgQuestionKey(category.id, index);
-      const value = state.esgAnswers[key] || "";
+      const value = currentEsgAnswers()[key] || "";
       const scale = [1, 2, 3, 4, 5].map((score) => `
         <label>
           <input type="radio" name="${key}" value="${score}" ${Number(value) === score ? "checked" : ""}>
@@ -408,23 +447,49 @@ function renderEsgForm() {
 
   esgForm.querySelectorAll("input[type='radio']").forEach((input) => {
     input.addEventListener("change", (event) => {
-      state.esgAnswers[event.target.name] = Number(event.target.value);
+      currentEsgAnswers()[event.target.name] = Number(event.target.value);
       updateAll();
     });
   });
 }
 
-function esgCategoryScore(category) {
+function esgCategoryScore(category, profile = currentProfile()) {
   const values = category.questions
-    .map((_, index) => state.esgAnswers[esgQuestionKey(category.id, index)])
+    .map((_, index) => profile.esgAnswers[esgQuestionKey(category.id, index)])
     .filter(Boolean);
 
   if (!values.length) return 0;
   return Math.round((values.reduce((sum, value) => sum + value, 0) / values.length) * 20);
 }
 
+function averageObjects(items, keys) {
+  if (!items.length) return Object.fromEntries(keys.map((key) => [key, 0]));
+  return Object.fromEntries(keys.map((key) => [
+    key,
+    Math.round(items.reduce((sum, item) => sum + (item[key] || 0), 0) / items.length)
+  ]));
+}
+
+function hasRoundAnswers(profile, round = state.round) {
+  return Object.keys(profile.answers[round]).length > 0;
+}
+
+function hasEsgAnswers(profile) {
+  return Object.keys(profile.esgAnswers).length > 0;
+}
+
+function scoreObjectForProfile(profile, round = state.round) {
+  return Object.fromEntries(categories.map((category) => [category.id, categoryScoreForProfile(category, profile, round)]));
+}
+
 function allEsgScores() {
-  return Object.fromEntries(esgCategories.map((category) => [category.id, esgCategoryScore(category)]));
+  if (state.assessmentMode !== "organization") {
+    return Object.fromEntries(esgCategories.map((category) => [category.id, esgCategoryScore(category)]));
+  }
+  const respondents = state.organization.members.filter(hasEsgAnswers);
+  const source = respondents.length ? respondents : [activeMember()];
+  const items = source.map((member) => Object.fromEntries(esgCategories.map((category) => [category.id, esgCategoryScore(category, member)])));
+  return averageObjects(items, esgCategories.map((category) => category.id));
 }
 
 function esgCompositeScore() {
@@ -463,7 +528,12 @@ function esgGrade(score) {
 }
 
 function allScores(round = state.round) {
-  return Object.fromEntries(categories.map((category) => [category.id, categoryScore(category, round)]));
+  if (state.assessmentMode !== "organization") {
+    return Object.fromEntries(categories.map((category) => [category.id, categoryScore(category, round)]));
+  }
+  const respondents = state.organization.members.filter((member) => hasRoundAnswers(member, round));
+  const source = respondents.length ? respondents : [activeMember()];
+  return averageObjects(source.map((member) => scoreObjectForProfile(member, round)), categories.map((category) => category.id));
 }
 
 function weightedScore(scores) {
@@ -520,7 +590,109 @@ function strongestCategories(scores, limit = 2) {
 }
 
 function answeredTotal() {
-  return Object.keys(currentAnswers()).length + Object.keys(state.esgAnswers).length;
+  return Object.keys(currentAnswers()).length + Object.keys(currentEsgAnswers()).length;
+}
+
+function answeredCountForProfile(profile, round = state.round) {
+  return Object.keys(profile.answers[round]).length + Object.keys(profile.esgAnswers).length;
+}
+
+function organizationStats(round = state.round) {
+  const members = state.organization.members;
+  const respondents = members.filter((member) => hasRoundAnswers(member, round));
+  const scoredMembers = respondents.map((member) => {
+    const scores = scoreObjectForProfile(member, round);
+    return {
+      member,
+      scores,
+      total: weightedScore(scores),
+      answered: answeredCountForProfile(member, round)
+    };
+  });
+  const totals = scoredMembers.map((item) => item.total);
+  const average = totals.length ? Math.round(totals.reduce((sum, value) => sum + value, 0) / totals.length) : weightedScore(allScores(round));
+  const variance = totals.length > 1
+    ? Math.sqrt(totals.reduce((sum, value) => sum + Math.pow(value - average, 2), 0) / totals.length)
+    : 0;
+  const consensus = clamp(100 - variance * 1.5);
+  const coverage = Math.round(
+    members.reduce((sum, member) => sum + answeredCountForProfile(member, round), 0) /
+    Math.max(1, members.length * totalQuestionCount) * 100
+  );
+
+  return {
+    members,
+    respondents,
+    scoredMembers,
+    average,
+    variance: Math.round(variance),
+    consensus,
+    coverage
+  };
+}
+
+function renderModeControls() {
+  const isOrganization = state.assessmentMode === "organization";
+  document.body.classList.toggle("is-organization-mode", isOrganization);
+  assessmentModeSelect.value = state.assessmentMode;
+  memberSelect.innerHTML = state.organization.members.map((member, index) => `
+    <option value="${member.id}">${index + 1}. ${escapeHTML(member.name)}</option>
+  `).join("");
+  memberSelect.value = state.organization.activeMemberId;
+
+  const member = activeMember();
+  memberNameInput.value = member.name;
+  memberRoleInput.value = member.role;
+  activeMemberBadge.textContent = `${member.name} / ${member.role}`;
+}
+
+function renderOrganizationPanel() {
+  const isOrganization = state.assessmentMode === "organization";
+  organizationPanel.classList.toggle("is-hidden", !isOrganization);
+  organizationModeBadge.textContent = isOrganization ? "組織モード" : "個人モード";
+  if (!isOrganization) {
+    organizationGrid.innerHTML = "";
+    memberTable.innerHTML = "";
+    return;
+  }
+
+  const stats = organizationStats();
+  const scores = allScores();
+  const type = organizationType(scores);
+  organizationGrid.innerHTML = [
+    ["回答者数", `${stats.respondents.length} / ${stats.members.length}`],
+    ["組織人的資本価値", stats.average],
+    ["合意度", stats.consensus],
+    ["回答カバー率", `${stats.coverage}%`],
+    ["ばらつき", stats.variance],
+    ["組織タイプ", type.label]
+  ].map(([label, value]) => `
+    <article class="org-stat-card">
+      <span>${label}</span>
+      <strong>${value}</strong>
+    </article>
+  `).join("");
+
+  memberTable.innerHTML = `
+    <div class="member-row member-row-head">
+      <span>回答者</span>
+      <span>役割</span>
+      <span>総合</span>
+      <span>回答数</span>
+    </div>
+    ${stats.members.map((member) => {
+      const scoresForMember = scoreObjectForProfile(member);
+      const hasAnswers = hasRoundAnswers(member);
+      return `
+        <div class="member-row">
+          <span>${escapeHTML(member.name)}</span>
+          <span>${escapeHTML(member.role)}</span>
+          <strong>${hasAnswers ? weightedScore(scoresForMember) : "--"}</strong>
+          <span>${answeredCountForProfile(member)} / ${totalQuestionCount}</span>
+        </div>
+      `;
+    }).join("")}
+  `;
 }
 
 function updateCounters() {
@@ -639,11 +811,12 @@ function renderSummary() {
   const scenario = state.scenario;
   const esgScore = esgCompositeScore();
   const esgStatus = esgGrade(esgScore);
+  const orgPrefix = state.assessmentMode === "organization" ? "組織集計として、" : "";
   summaryRound.textContent = state.round === "before" ? "Before" : "After";
   summaryGrid.innerHTML = [
     {
       title: "組織タイプ判定",
-      body: type.description
+      body: `${orgPrefix}${type.description}`
     },
     {
       title: "強み",
@@ -1539,8 +1712,12 @@ function renderRecommendations() {
 function renderGrowth() {
   const before = allScores("before");
   const after = allScores("after");
-  const hasBefore = Object.keys(state.answers.before).length > 0;
-  const hasAfter = Object.keys(state.answers.after).length > 0;
+  const hasBefore = state.assessmentMode === "organization"
+    ? state.organization.members.some((member) => hasRoundAnswers(member, "before"))
+    : Object.keys(state.answers.before).length > 0;
+  const hasAfter = state.assessmentMode === "organization"
+    ? state.organization.members.some((member) => hasRoundAnswers(member, "after"))
+    : Object.keys(state.answers.after).length > 0;
 
   if (!hasBefore || !hasAfter) {
     growthScore.textContent = "--";
@@ -1560,7 +1737,8 @@ function renderGrowth() {
   const delta = afterTotal - beforeTotal;
   growthScore.textContent = delta > 0 ? `+${delta}` : `${delta}`;
   growthBadge.textContent = delta >= 10 ? "大きく成長" : delta > 0 ? "成長中" : "要再設計";
-  growthNarrative.textContent = `総合人的資本価値は${beforeTotal}点から${afterTotal}点に変化しました。伸びた領域を次のプロジェクトに接続し、停滞した領域は教育コンテンツと組織習慣で補強します。`;
+  const subject = state.assessmentMode === "organization" ? "組織の総合人的資本価値" : "総合人的資本価値";
+  growthNarrative.textContent = `${subject}は${beforeTotal}点から${afterTotal}点に変化しました。伸びた領域を次のプロジェクトに接続し、停滞した領域は教育コンテンツと組織習慣で補強します。`;
 
   deltaList.innerHTML = categories.map((category) => {
     const change = after[category.id] - before[category.id];
@@ -1574,8 +1752,10 @@ function renderGrowth() {
 }
 
 function updateAll() {
+  renderModeControls();
   updateCounters();
   renderScores();
+  renderOrganizationPanel();
   renderMatrix();
   drawRadar();
   renderSummary();
@@ -1621,7 +1801,7 @@ function sampleEsgAnswers() {
     category.questions.forEach((_, questionIndex) => {
       const base = templates[state.round][categoryIndex];
       const adjustment = questionIndex === 1 ? 1 : 0;
-      state.esgAnswers[esgQuestionKey(category.id, questionIndex)] = Math.min(5, base + adjustment);
+      currentEsgAnswers()[esgQuestionKey(category.id, questionIndex)] = Math.min(5, base + adjustment);
     });
   });
   renderEsgForm();
@@ -1668,8 +1848,8 @@ function downloadGeneratedImage() {
 }
 
 function resetCurrentRound() {
-  state.answers[state.round] = {};
-  state.esgAnswers = {};
+  currentProfile().answers[state.round] = {};
+  currentProfile().esgAnswers = {};
   renderForm();
   renderEsgForm();
   updateAll();
@@ -1694,6 +1874,48 @@ document.querySelectorAll("[data-view-target]").forEach((button) => {
 roundSelect.addEventListener("change", (event) => {
   state.round = event.target.value;
   renderForm();
+  renderEsgForm();
+  updateAll();
+});
+
+assessmentModeSelect.addEventListener("change", (event) => {
+  state.assessmentMode = event.target.value;
+  renderForm();
+  renderEsgForm();
+  updateAll();
+});
+
+memberSelect.addEventListener("change", (event) => {
+  state.organization.activeMemberId = event.target.value;
+  renderForm();
+  renderEsgForm();
+  updateAll();
+});
+
+memberNameInput.addEventListener("input", (event) => {
+  activeMember().name = event.target.value.trim() || "名称未設定";
+  updateAll();
+});
+
+memberRoleInput.addEventListener("input", (event) => {
+  activeMember().role = event.target.value.trim() || "メンバー";
+  updateAll();
+});
+
+addMemberButton.addEventListener("click", () => {
+  const nextIndex = state.organization.members.length + 1;
+  const id = `member_${Date.now()}`;
+  state.organization.members.push({
+    id,
+    name: `回答者 ${nextIndex}`,
+    role: "メンバー",
+    answers: { before: {}, after: {} },
+    esgAnswers: {}
+  });
+  state.organization.activeMemberId = id;
+  state.assessmentMode = "organization";
+  renderForm();
+  renderEsgForm();
   updateAll();
 });
 

@@ -62,15 +62,43 @@
 
           <div class="controls-row">
             <label>
+              利用モード
+              <select id="assessmentModeSelect">
+                <option value="individual">個人モード</option>
+                <option value="organization">組織モード</option>
+              </select>
+            </label>
+            <label>
               診断ラウンド
               <select id="roundSelect">
                 <option value="before">Before</option>
                 <option value="after">After</option>
               </select>
             </label>
+            <label class="org-control">
+              回答者
+              <select id="memberSelect"></select>
+            </label>
+            <label class="org-control">
+              氏名・チーム
+              <input id="memberNameInput" type="text" placeholder="例: 営業チーム Aさん">
+            </label>
+            <label class="org-control">
+              役割
+              <input id="memberRoleInput" type="text" placeholder="例: 現場リーダー">
+            </label>
+            <button class="secondary-button org-control" id="addMemberButton" type="button">回答者を追加</button>
             <button class="secondary-button" id="sampleButton" type="button">サンプル入力</button>
             <button class="secondary-button" id="resetButton" type="button">リセット</button>
           </div>
+
+          <section class="panel org-control organization-entry-panel">
+            <div class="panel-header">
+              <h2>組織モードの測定</h2>
+              <span class="badge muted" id="activeMemberBadge">回答者 1</span>
+            </div>
+            <p class="narrative">複数メンバーが同じ診断に回答すると、結果画面で組織の人的資本価値、組織OS、well-being、ESG適格性を平均・合意度・ばらつきとして評価します。</p>
+          </section>
 
           <form id="assessmentForm" class="assessment-form"></form>
 
@@ -124,6 +152,15 @@
             </div>
             <button class="primary-button" data-view-target="recommendations" type="button">提案へ進む</button>
           </div>
+
+          <section class="panel organization-panel" id="organizationPanel">
+            <div class="panel-header">
+              <h2>組織集計</h2>
+              <span class="badge" id="organizationModeBadge">個人モード</span>
+            </div>
+            <div class="organization-grid" id="organizationGrid"></div>
+            <div class="member-table" id="memberTable"></div>
+          </section>
 
           <div class="score-grid" id="scoreGrid"></div>
 
@@ -269,7 +306,7 @@
               </div>
               <div class="growth-hero">
                 <strong id="growthScore">--</strong>
-                <span>Human Asset Growth Index</span>
+                <span>Human Capital Growth Index</span>
               </div>
               <p id="growthNarrative" class="narrative">BeforeとAfterの両方を入力すると、変化が表示されます。</p>
             </section>

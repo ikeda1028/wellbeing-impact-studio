@@ -221,6 +221,18 @@ textarea {
   font-weight: 700;
 }
 
+.org-control {
+  display: none !important;
+}
+
+.is-organization-mode .org-control {
+  display: grid !important;
+}
+
+.is-organization-mode button.org-control {
+  display: inline-flex !important;
+}
+
 select,
 input,
 textarea {
@@ -368,6 +380,73 @@ textarea {
   grid-template-columns: repeat(4, minmax(0, 1fr));
   gap: 14px;
   margin-bottom: 16px;
+}
+
+.organization-entry-panel {
+  margin-bottom: 18px;
+}
+
+.organization-panel {
+  margin-bottom: 16px;
+}
+
+.organization-panel.is-hidden {
+  display: none;
+}
+
+.organization-grid {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 12px;
+  margin-bottom: 14px;
+}
+
+.org-stat-card {
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+}
+
+.org-stat-card span {
+  display: block;
+  min-height: 34px;
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.org-stat-card strong {
+  display: block;
+  font-size: 22px;
+  line-height: 1.2;
+}
+
+.member-table {
+  display: grid;
+  gap: 6px;
+}
+
+.member-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr) 80px 120px;
+  gap: 10px;
+  align-items: center;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  font-size: 13px;
+}
+
+.member-row-head {
+  background: #edf4f0;
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.member-row strong {
+  color: var(--green);
 }
 
 .score-card {
@@ -877,6 +956,7 @@ canvas {
   }
 
   .score-grid,
+  .organization-grid,
   .summary-grid,
   .recommendation-grid,
   .scenario-score-grid,
@@ -906,12 +986,17 @@ canvas {
 
   .steps,
   .score-grid,
+  .organization-grid,
   .summary-grid,
   .recommendation-grid,
   .scenario-score-grid,
   .esg-score-grid,
   .scenario-output,
   .context-form {
+    grid-template-columns: 1fr;
+  }
+
+  .member-row {
     grid-template-columns: 1fr;
   }
 
