@@ -220,6 +220,8 @@ const memberNameInput = document.querySelector("#memberNameInput");
 const memberRoleInput = document.querySelector("#memberRoleInput");
 const addMemberButton = document.querySelector("#addMemberButton");
 const activeMemberBadge = document.querySelector("#activeMemberBadge");
+const coverCanvas = document.querySelector("#coverCanvas");
+const coverStartButton = document.querySelector("#coverStartButton");
 const answeredCount = document.querySelector("#answeredCount");
 const scoreGrid = document.querySelector("#scoreGrid");
 const organizationPanel = document.querySelector("#organizationPanel");
@@ -666,6 +668,84 @@ function renderModeControls() {
   memberNameInput.value = member.name;
   memberRoleInput.value = member.role;
   activeMemberBadge.textContent = `${member.name} / ${member.role}`;
+}
+
+let coverFrame = 0;
+
+function drawCoverCanvas() {
+  if (!coverCanvas) return;
+  const ctx = coverCanvas.getContext("2d");
+  const width = coverCanvas.width;
+  const height = coverCanvas.height;
+  const scores = allScores();
+  const esgScore = esgCompositeScore();
+  const t = coverFrame * 0.018;
+  coverFrame += 1;
+
+  ctx.clearRect(0, 0, width, height);
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, "#f7fbf8");
+  gradient.addColorStop(0.52, "#e6f3ee");
+  gradient.addColorStop(1, "#edf4fb");
+  ctx.fillStyle = gradient;
+  drawRoundedRect(ctx, 18, 18, width - 36, height - 36, 26);
+  ctx.fill();
+
+  const nodes = [
+    { label: "人的資本", value: scores.human || 56, x: 170, y: 160, color: "#1e7d5b" },
+    { label: "組織OS", value: Math.round(((scores.autonomy || 50) + (scores.project || 50) + (scores.leadership || 50)) / 3), x: 390, y: 112, color: "#1f8a99" },
+    { label: "地域WB", value: scores.regional || 52, x: 570, y: 245, color: "#2d68b1" },
+    { label: "事業性", value: scores.business || 50, x: 420, y: 395, color: "#bd7b22" },
+    { label: "ESG", value: esgScore || 54, x: 190, y: 340, color: "#b85353" }
+  ];
+
+  ctx.lineWidth = 2;
+  nodes.forEach((node, index) => {
+    const next = nodes[(index + 1) % nodes.length];
+    const pulse = 0.45 + Math.sin(t + index) * 0.18;
+    ctx.strokeStyle = `rgba(30, 125, 91, ${pulse})`;
+    ctx.beginPath();
+    ctx.moveTo(node.x, node.y);
+    ctx.bezierCurveTo(width / 2, node.y - 30, width / 2, next.y + 30, next.x, next.y);
+    ctx.stroke();
+  });
+
+  nodes.forEach((node, index) => {
+    const radius = 48 + (node.value / 100) * 24 + Math.sin(t * 1.4 + index) * 4;
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, radius + 10, 0, Math.PI * 2);
+    ctx.fillStyle = `${node.color}16`;
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.arc(node.x, node.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = "#ffffff";
+    ctx.fill();
+    ctx.strokeStyle = node.color;
+    ctx.lineWidth = 3;
+    ctx.stroke();
+
+    ctx.fillStyle = node.color;
+    ctx.font = "800 26px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText(String(node.value), node.x, node.y - 4);
+    ctx.fillStyle = "#52605b";
+    ctx.font = "700 15px sans-serif";
+    ctx.fillText(node.label, node.x, node.y + 24);
+  });
+
+  ctx.fillStyle = "#16201d";
+  ctx.font = "800 24px sans-serif";
+  ctx.textAlign = "center";
+  ctx.fillText("Impact Loop", width / 2, height / 2 - 10);
+  ctx.fillStyle = "#52605b";
+  ctx.font = "600 14px sans-serif";
+  ctx.fillText("Diagnosis -> AI Scenario -> ESG -> TLA Action", width / 2, height / 2 + 18);
+}
+
+function animateCoverCanvas() {
+  drawCoverCanvas();
+  requestAnimationFrame(animateCoverCanvas);
 }
 
 function renderOrganizationPanel() {
@@ -2036,8 +2116,12 @@ scenarioOptions.addEventListener("click", (event) => {
 });
 generateImageButton.addEventListener("click", generateScenarioImage);
 downloadImageButton.addEventListener("click", downloadGeneratedImage);
+coverStartButton.addEventListener("click", () => {
+  document.querySelector(".page-header")?.scrollIntoView({ behavior: "smooth", block: "start" });
+});
 
 renderForm();
 renderEsgForm();
 ensureScenarioStarted();
 updateAll();
+animateCoverCanvas();
