@@ -346,6 +346,12 @@ const AI_SCENARIO_API =
   window.WELLBEING_AI_API_BASE ||
   localStorage.getItem("WELLBEING_AI_API_BASE") ||
   "";
+const AI_IMAGE_API =
+  window.WELLBEING_AI_IMAGE_API_BASE ||
+  window.WELLBEING_AI_API_BASE ||
+  localStorage.getItem("WELLBEING_AI_IMAGE_API_BASE") ||
+  localStorage.getItem("WELLBEING_AI_API_BASE") ||
+  "";
 
 function renderForm() {
   form.innerHTML = categories.map((category) => {
@@ -1190,7 +1196,7 @@ function buildScenario() {
   };
 
   renderScenario();
-  generateScenarioImage();
+  generateLocalScenarioImage();
   renderRecommendations();
 }
 
@@ -1336,7 +1342,7 @@ function buildImagePrompt() {
     `表現: 組織、地域、市場、AI、well-being、事業性の関係が一目で分かる未来志向のコンセプトアート。`,
     `画面要素: 中央にプロジェクトの核、周囲にステークホルダー、右側に事業成長、左側に組織変革、下部に地域well-beingの波及。`,
     `スコア参考: ${scoreText}`,
-    "スタイル: 清潔なSaaSダッシュボード向け、明るい自然光、信頼感、過度な装飾なし、文字は最小限。"
+    "スタイル: 清潔なSaaSダッシュボード向け、明るい自然光、信頼感、過度な装飾なし、文字は入れず、図解的でプロフェッショナル。"
   ].join("\n");
 }
 
@@ -1392,7 +1398,7 @@ function drawNode(ctx, node) {
   ctx.restore();
 }
 
-function generateScenarioImage() {
+function generateLocalScenarioImage() {
   const canvas = generatedImageCanvas;
   const ctx = canvas.getContext("2d");
   const width = canvas.width;
@@ -1524,6 +1530,38 @@ function generateScenarioImage() {
   });
 }
 
+async function generateScenarioImage() {
+  const prompt = buildImagePrompt();
+  imagePromptText.value = prompt;
+  generateImageButton.disabled = true;
+  generateImageButton.textContent = "AI生成中";
+
+  try {
+    const response = await fetch(`${AI_IMAGE_API}/api/image-generate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ prompt })
+    });
+    if (!response.ok) throw new Error(await response.text());
+
+    const data = await response.json();
+    const image = new Image();
+    image.onload = () => {
+      const canvas = generatedImageCanvas;
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+    };
+    image.src = `data:image/png;base64,${data.imageBase64}`;
+  } catch (error) {
+    console.warn("AI image generation failed. Falling back to local canvas.", error);
+    generateLocalScenarioImage();
+  } finally {
+    generateImageButton.disabled = false;
+    generateImageButton.textContent = "AI画像生成";
+  }
+}
+
 function renderScenario() {
   ensureScenarioStarted();
   scenarioStageBadge.textContent =
@@ -1589,7 +1627,7 @@ function renderScenario() {
       </article>
     `).join("");
     scenarioOutput.innerHTML = "";
-    generateScenarioImage();
+    generateLocalScenarioImage();
     return;
   }
 
