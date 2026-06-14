@@ -672,6 +672,7 @@ function renderModeControls() {
 
 let coverFrame = 0;
 const coverPointer = { x: 0, y: 0, active: false, hovered: "" };
+const coverInfluence = {};
 
 function drawCoverCanvas() {
   if (!coverCanvas) return;
@@ -700,11 +701,21 @@ function drawCoverCanvas() {
     { label: "ESG", value: esgScore || 54, x: 190, y: 340, color: "#b85353" }
   ];
 
+  nodes.forEach((node) => {
+    if (coverInfluence[node.label] === undefined) coverInfluence[node.label] = 0;
+    const distance = coverPointer.active ? Math.hypot(coverPointer.x - node.x, coverPointer.y - node.y) : Infinity;
+    const targetInfluence = coverPointer.active ? Math.max(0, 1 - distance / 280) : 0;
+    coverInfluence[node.label] += (targetInfluence - coverInfluence[node.label]) * 0.075;
+    if (coverInfluence[node.label] > 0.22) coverPointer.hovered = node.label;
+  });
+
   ctx.lineWidth = 2;
   nodes.forEach((node, index) => {
     const next = nodes[(index + 1) % nodes.length];
-    const pulse = 0.45 + Math.sin(t + index) * 0.18;
+    const influence = Math.max(coverInfluence[node.label] || 0, coverInfluence[next.label] || 0);
+    const pulse = 0.36 + Math.sin(t + index) * 0.12 + influence * 0.32;
     ctx.strokeStyle = `rgba(30, 125, 91, ${pulse})`;
+    ctx.lineWidth = 2 + influence * 3;
     ctx.beginPath();
     ctx.moveTo(node.x, node.y);
     ctx.bezierCurveTo(width / 2, node.y - 30, width / 2, next.y + 30, next.x, next.y);
@@ -713,12 +724,10 @@ function drawCoverCanvas() {
 
   nodes.forEach((node, index) => {
     const baseRadius = 48 + (node.value / 100) * 24 + Math.sin(t * 1.4 + index) * 4;
-    const distance = coverPointer.active ? Math.hypot(coverPointer.x - node.x, coverPointer.y - node.y) : Infinity;
-    const isHovered = distance < baseRadius + 18;
-    const radius = baseRadius * (isHovered ? 1.28 : 1);
-    if (isHovered) coverPointer.hovered = node.label;
+    const influence = coverInfluence[node.label] || 0;
+    const radius = baseRadius * (1 + influence * 0.36);
     ctx.beginPath();
-    ctx.arc(node.x, node.y, radius + (isHovered ? 22 : 10), 0, Math.PI * 2);
+    ctx.arc(node.x, node.y, radius + 10 + influence * 24, 0, Math.PI * 2);
     ctx.fillStyle = `${node.color}16`;
     ctx.fill();
 
@@ -727,16 +736,16 @@ function drawCoverCanvas() {
     ctx.fillStyle = "#ffffff";
     ctx.fill();
     ctx.strokeStyle = node.color;
-    ctx.lineWidth = isHovered ? 5 : 3;
+    ctx.lineWidth = 3 + influence * 3;
     ctx.stroke();
 
     ctx.fillStyle = node.color;
-    ctx.font = `800 ${isHovered ? 34 : 26}px sans-serif`;
+    ctx.font = `800 ${26 + influence * 10}px sans-serif`;
     ctx.textAlign = "center";
-    ctx.fillText(String(node.value), node.x, node.y - (isHovered ? 8 : 4));
+    ctx.fillText(String(node.value), node.x, node.y - 4 - influence * 6);
     ctx.fillStyle = "#52605b";
-    ctx.font = `700 ${isHovered ? 18 : 15}px sans-serif`;
-    ctx.fillText(node.label, node.x, node.y + (isHovered ? 30 : 24));
+    ctx.font = `700 ${15 + influence * 3}px sans-serif`;
+    ctx.fillText(node.label, node.x, node.y + 24 + influence * 7);
   });
 
   ctx.fillStyle = "#16201d";
