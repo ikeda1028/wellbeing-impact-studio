@@ -671,6 +671,7 @@ function renderModeControls() {
 }
 
 let coverFrame = 0;
+const coverPointer = { x: 0, y: 0, active: false, hovered: "" };
 
 function drawCoverCanvas() {
   if (!coverCanvas) return;
@@ -711,9 +712,13 @@ function drawCoverCanvas() {
   });
 
   nodes.forEach((node, index) => {
-    const radius = 48 + (node.value / 100) * 24 + Math.sin(t * 1.4 + index) * 4;
+    const baseRadius = 48 + (node.value / 100) * 24 + Math.sin(t * 1.4 + index) * 4;
+    const distance = coverPointer.active ? Math.hypot(coverPointer.x - node.x, coverPointer.y - node.y) : Infinity;
+    const isHovered = distance < baseRadius + 18;
+    const radius = baseRadius * (isHovered ? 1.28 : 1);
+    if (isHovered) coverPointer.hovered = node.label;
     ctx.beginPath();
-    ctx.arc(node.x, node.y, radius + 10, 0, Math.PI * 2);
+    ctx.arc(node.x, node.y, radius + (isHovered ? 22 : 10), 0, Math.PI * 2);
     ctx.fillStyle = `${node.color}16`;
     ctx.fill();
 
@@ -722,16 +727,16 @@ function drawCoverCanvas() {
     ctx.fillStyle = "#ffffff";
     ctx.fill();
     ctx.strokeStyle = node.color;
-    ctx.lineWidth = 3;
+    ctx.lineWidth = isHovered ? 5 : 3;
     ctx.stroke();
 
     ctx.fillStyle = node.color;
-    ctx.font = "800 26px sans-serif";
+    ctx.font = `800 ${isHovered ? 34 : 26}px sans-serif`;
     ctx.textAlign = "center";
-    ctx.fillText(String(node.value), node.x, node.y - 4);
+    ctx.fillText(String(node.value), node.x, node.y - (isHovered ? 8 : 4));
     ctx.fillStyle = "#52605b";
-    ctx.font = "700 15px sans-serif";
-    ctx.fillText(node.label, node.x, node.y + 24);
+    ctx.font = `700 ${isHovered ? 18 : 15}px sans-serif`;
+    ctx.fillText(node.label, node.x, node.y + (isHovered ? 30 : 24));
   });
 
   ctx.fillStyle = "#16201d";
@@ -744,8 +749,18 @@ function drawCoverCanvas() {
 }
 
 function animateCoverCanvas() {
+  coverPointer.hovered = "";
   drawCoverCanvas();
+  if (coverCanvas) coverCanvas.style.cursor = coverPointer.hovered ? "pointer" : "default";
   requestAnimationFrame(animateCoverCanvas);
+}
+
+function updateCoverPointer(event) {
+  if (!coverCanvas) return;
+  const rect = coverCanvas.getBoundingClientRect();
+  coverPointer.x = ((event.clientX - rect.left) / rect.width) * coverCanvas.width;
+  coverPointer.y = ((event.clientY - rect.top) / rect.height) * coverCanvas.height;
+  coverPointer.active = true;
 }
 
 function renderOrganizationPanel() {
@@ -2119,6 +2134,17 @@ downloadImageButton.addEventListener("click", downloadGeneratedImage);
 coverStartButton.addEventListener("click", () => {
   document.querySelector(".page-header")?.scrollIntoView({ behavior: "smooth", block: "start" });
 });
+coverCanvas.addEventListener("mousemove", updateCoverPointer);
+coverCanvas.addEventListener("mouseleave", () => {
+  coverPointer.active = false;
+  coverPointer.hovered = "";
+});
+coverCanvas.addEventListener("touchstart", (event) => {
+  updateCoverPointer(event.touches[0]);
+}, { passive: true });
+coverCanvas.addEventListener("touchmove", (event) => {
+  updateCoverPointer(event.touches[0]);
+}, { passive: true });
 
 renderForm();
 renderEsgForm();
