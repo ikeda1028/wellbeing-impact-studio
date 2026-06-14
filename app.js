@@ -1663,15 +1663,22 @@ function renderRecommendations() {
   const scenario = state.scenario;
   const esgScore = esgCompositeScore();
   const esgStatus = esgGrade(esgScore);
+  const liftTarget = (value, lift = 12) => clamp((value || 0) + lift);
+  const targetText = (label, current, target) => `${label}: ${current || "--"} -> ${target}`;
+  const scenarioScores = scenario?.scores;
   const cards = [
     {
       title: "優先テーマ",
       body: `${weak.map((item) => item.label).join("、")}を90日間の改善テーマにします。総合スコアは${total}です。`,
+      target: targetText("総合人的資本価値", total, liftTarget(total, 10)),
       list: weak.map((item) => `${item.short}: ${scores[item.id]}点`)
     },
     {
       title: "実践プロジェクト案",
       body: scenario ? scenario.title : "地域または組織の実課題を題材に、学習と事業仮説を同時に検証します。",
+      target: scenarioScores
+        ? targetText("AIシナリオ総合指数", scenarioScores.impactIndex, liftTarget(scenarioScores.impactIndex, 8))
+        : "30日以内に最小実証を1件開始",
       list: scenario ? scenario.experiments : [
           "地域の困りごとを1つ選び、関係者5名にヒアリングする",
           "AIで先行事例、顧客、収益モデルを整理する",
@@ -1681,6 +1688,9 @@ function renderRecommendations() {
     {
       title: "文脈スコア",
       body: scenario ? `AIシナリオ総合指数は${scenario.scores.impactIndex}です。事業性とwell-beingの両面から実証優先度を判断します。` : "AIシナリオを生成すると、文脈を加味した事業性とwell-beingインパクトがここに反映されます。",
+      target: scenarioScores
+        ? `市場適合 ${scenarioScores.marketFit} -> ${liftTarget(scenarioScores.marketFit, 8)} / 実行リスク ${scenarioScores.executionRisk} -> ${Math.max(0, scenarioScores.executionRisk - 8)}`
+        : "AIシナリオ3場面を完了し、文脈スコアを算出",
       list: scenario ? [
         `市場適合: ${scenario.scores.marketFit}`,
         `組織実装力: ${scenario.scores.orgReadiness}`,
@@ -1694,6 +1704,7 @@ function renderRecommendations() {
     {
       title: "ESG投資適格性",
       body: `現在のESG Readinessは${esgScore || "--"}点、判定は「${esgStatus.label}」です。業界比較を行い、当社の人的資本・well-being・地域インパクト上の強みを投資家向けに確定します。`,
+      target: targetText("ESG Readiness", esgScore || 0, liftTarget(esgScore || 0, 12)),
       list: [
         "同業他社の人的資本、ESG、地域インパクト開示を比較する",
         "当社の強みを非財務価値、競争優位、成長ストーリーとして定義する",
@@ -1703,6 +1714,7 @@ function renderRecommendations() {
     {
       title: "組織OSアクション",
       body: `${type.label}として、組織開発を経営課題として扱い、部署横断で改善サイクルを回します。`,
+      target: `自律分散 ${scores.autonomy} -> ${liftTarget(scores.autonomy)} / プロジェクト型 ${scores.project} -> ${liftTarget(scores.project)}`,
       list: [
         "自律分散、プロジェクト型、分散型リーダーシップの現状ギャップを可視化する",
         "会議、権限移譲、情報共有、振り返りの組織習慣を設計し直す",
@@ -1712,6 +1724,7 @@ function renderRecommendations() {
     {
       title: "改善タスクフォース",
       body: "次世代リーダー候補、取締役、各部署、現場メンバーを招聘し、診断結果を実装に変える推進チームを組成します。",
+      target: "90日で3テーマを実証、月1回の取締役レビュー、部署横断参加率70%以上",
       list: [
         "取締役または経営層がスポンサーとなり、改善テーマの優先順位を決める",
         "各部署と現場メンバーが課題、制約、実行アイデアを持ち寄る",
@@ -1721,6 +1734,7 @@ function renderRecommendations() {
     {
       title: "TLA組織開発プログラム",
       body: "改善タスクフォースの共通言語を作るため、TLAプログラム受講を推奨します。学習だけで終えず、実プロジェクトに接続します。",
+      target: `探究度数 ${scores.inquiry} -> ${liftTarget(scores.inquiry, 10)} / リーダーシップ ${scores.leadership} -> ${liftTarget(scores.leadership, 12)}`,
       list: [
         "人的資本価値、well-being、ESGを統合して理解する",
         "AIリサーチ、問いの設定、業界比較、KPI設計を実践する",
@@ -1730,6 +1744,7 @@ function renderRecommendations() {
     {
       title: "AIシミュレーション",
       body: "上司、地域住民、顧客、自治体担当者の反応をAIが演じ、提案の実践力を測ります。",
+      target: "3場面×2回の再演習で、実践判断スコア80点以上を目指す",
       list: [
         "提案への反論対応",
         "地域関係者との合意形成",
@@ -1739,6 +1754,7 @@ function renderRecommendations() {
     {
       title: "次回測定",
       body: "90日後に同じ診断を行い、人的資本価値とwell-beingインパクトの伸びを比較します。",
+      target: `Before比 +10点以上、組織well-being ${scores.orgWellbeing} -> ${liftTarget(scores.orgWellbeing, 10)}`,
       list: [
         "Before / Afterスコア",
         "組織タイプの変化",
@@ -1751,6 +1767,10 @@ function renderRecommendations() {
     <article class="recommendation-card">
       <strong>${card.title}</strong>
       <p>${card.body}</p>
+      <div class="target-box">
+        <span>数値目標</span>
+        <b>${card.target}</b>
+      </div>
       <ul>${card.list.map((item) => `<li>${item}</li>`).join("")}</ul>
     </article>
   `).join("");
