@@ -362,8 +362,20 @@
               <h1>ESG・組織開発・TLA実践提案</h1>
               <p>診断結果から、業界比較、当社の強み確定、改善タスクフォース、TLA組織開発プログラムを提案します。</p>
             </div>
-            <button class="primary-button" data-view-target="growth" type="button">成長比較へ</button>
+            <div class="header-actions">
+              <button class="primary-button" id="generateAiRecommendationsButton" type="button">AIで組織別提案を生成</button>
+              <button class="secondary-button" id="resetAiRecommendationsButton" type="button">標準提案に戻す</button>
+              <button class="primary-button" data-view-target="growth" type="button">成長比較へ</button>
+            </div>
           </div>
+
+          <section class="panel ai-recommendation-panel">
+            <div class="panel-header">
+              <h2>AI組織別提案</h2>
+              <span class="badge muted" id="aiRecommendationBadge">標準提案</span>
+            </div>
+            <p class="narrative" id="aiRecommendationMemo">AI解析、診断スコア、組織モードのばらつき、AIシナリオ結果をもとに、この組織に属した提案へ更新できます。</p>
+          </section>
 
           <div class="recommendation-grid" id="recommendationGrid"></div>
         </section>

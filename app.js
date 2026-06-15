@@ -209,7 +209,9 @@ const state = {
   },
   scenarioResponses: [],
   scenarioMessages: [],
-  scenario: null
+  scenario: null,
+  websiteAssessment: null,
+  aiRecommendations: null
 };
 
 const form = document.querySelector("#assessmentForm");
@@ -238,6 +240,10 @@ const matrixDot = document.querySelector("#matrixDot");
 const summaryGrid = document.querySelector("#summaryGrid");
 const summaryRound = document.querySelector("#summaryRound");
 const recommendationGrid = document.querySelector("#recommendationGrid");
+const generateAiRecommendationsButton = document.querySelector("#generateAiRecommendationsButton");
+const resetAiRecommendationsButton = document.querySelector("#resetAiRecommendationsButton");
+const aiRecommendationBadge = document.querySelector("#aiRecommendationBadge");
+const aiRecommendationMemo = document.querySelector("#aiRecommendationMemo");
 const radarCanvas = document.querySelector("#radarCanvas");
 const growthScore = document.querySelector("#growthScore");
 const growthBadge = document.querySelector("#growthBadge");
@@ -423,6 +429,10 @@ function localWebsiteAssessment(url, companyName = "") {
 }
 
 function applyWebsiteAssessment(result, fallbackUrl = "") {
+  state.websiteAssessment = {
+    ...result,
+    sourceLabel: result.sourceUrl || fallbackUrl || result.companyName || result.requestedCompanyName || ""
+  };
   fillAnswersFromCategoryScores(result.scores || {});
   fillEsgAnswersFromScores(result.esgScores || {});
   renderForm();
@@ -2176,7 +2186,163 @@ function renderScenario() {
   `).join("");
 }
 
+function buildRecommendationContext() {
+  const scores = allScores();
+  const esg = allEsgScores();
+  const esgScore = esgCompositeScore();
+  const type = organizationType(scores);
+  const stats = state.assessmentMode === "organization" ? organizationStats() : null;
+  return {
+    mode: state.assessmentMode,
+    round: state.round,
+    company: {
+      inputName: companyNameInput.value.trim(),
+      inputUrl: websiteUrlInput.value.trim(),
+      aiAnalysis: state.websiteAssessment
+    },
+    totalHumanCapital: weightedScore(scores),
+    organizationType: type,
+    scores,
+    esgScores: esg,
+    esgCompositeScore: esgScore,
+    esgGrade: esgGrade(esgScore),
+    weakestCategories: weakestCategories(scores, 3).map((category) => ({
+      id: category.id,
+      label: category.label,
+      score: scores[category.id]
+    })),
+    strongestCategories: strongestCategories(scores, 3).map((category) => ({
+      id: category.id,
+      label: category.label,
+      score: scores[category.id]
+    })),
+    organizationStats: stats ? {
+      respondents: stats.respondents.length,
+      members: stats.members.length,
+      average: stats.average,
+      variance: stats.variance,
+      consensus: stats.consensus,
+      coverage: stats.coverage,
+      categorySpread: stats.categorySpread.slice(0, 5)
+    } : null,
+    scenario: state.scenario ? {
+      title: state.scenario.title,
+      story: state.scenario.story,
+      context: state.scenario.context,
+      scores: state.scenario.scores,
+      judgement: state.scenario.judgement,
+      experiments: state.scenario.experiments,
+      risks: state.scenario.risks,
+      stakeholders: state.scenario.stakeholders
+    } : null
+  };
+}
+
+function localAiRecommendations() {
+  const scores = allScores();
+  const weak = weakestCategories(scores, 3);
+  const type = organizationType(scores);
+  const total = weightedScore(scores);
+  const esgScore = esgCompositeScore();
+  const stats = state.assessmentMode === "organization" ? organizationStats() : null;
+  const source = state.websiteAssessment?.companyName || companyNameInput.value.trim() || "この組織";
+  const lift = (value, amount = 10) => clamp((value || 0) + amount);
+  return {
+    source: "ローカルAI組織別提案",
+    summary: `${source}の診断結果をもとに、弱点補強とESG適格性を同時に高める提案です。`,
+    cards: [
+      {
+        title: `${source}向け優先テーマ`,
+        body: `${type.label}の状態を前提に、${weak.map((item) => item.label).join("、")}を90日間の重点テーマにします。`,
+        target: `総合人的資本価値 ${total} -> ${lift(total, 10)}`,
+        list: weak.map((item) => `${item.short}を${scores[item.id]}点から${lift(scores[item.id], 12)}点へ引き上げる`)
+      },
+      {
+        title: "組織OSアクション",
+        body: "会議、権限移譲、情報共有、振り返りを再設計し、現場発のプロジェクトが進む組織習慣を作ります。",
+        target: `自律分散 ${scores.autonomy} -> ${lift(scores.autonomy)} / プロジェクト型 ${scores.project} -> ${lift(scores.project)}`,
+        list: ["意思決定できる範囲を部署ごとに明文化する", "週次で課題、実験、学びを共有する", "部署横断の小さな実証枠を3件作る"]
+      },
+      {
+        title: "改善タスクフォース",
+        body: "次世代リーダー、取締役、各部署、現場メンバーを招聘し、診断結果を実装に変える推進チームを組成します。",
+        target: stats ? `合意度 ${stats.consensus} -> ${lift(stats.consensus, 8)} / ばらつき ${stats.variance} -> ${Math.max(0, stats.variance - 5)}` : "90日で3テーマを実証、部署横断参加率70%以上",
+        list: ["経営スポンサーを1名置く", "各部署から実装担当を1名ずつ選ぶ", "月1回の取締役レビューでKPIを更新する"]
+      },
+      {
+        title: "ESG投資適格性",
+        body: "人的資本、well-being、地域インパクトを投資家向けの非財務価値として説明できる状態に整えます。",
+        target: `ESG Readiness ${esgScore || 0} -> ${lift(esgScore || 0, 12)}`,
+        list: ["業界比較で当社の強みを定義する", "人的資本・地域インパクトKPIを3つ設定する", "改善ロードマップを四半期単位で開示できる形にする"]
+      },
+      {
+        title: "TLA組織開発プログラム",
+        body: "AIリサーチ、問いの設定、業界比較、KPI設計を実プロジェクトに接続します。",
+        target: `探究度数 ${scores.inquiry} -> ${lift(scores.inquiry)} / リーダーシップ ${scores.leadership} -> ${lift(scores.leadership)}`,
+        list: ["TLA受講者を次世代リーダー候補から選抜する", "90日プロジェクトを教材ではなく実案件で設計する", "Before/Afterで人的資本価値を再測定する"]
+      }
+    ]
+  };
+}
+
+async function generateAiRecommendations() {
+  generateAiRecommendationsButton.disabled = true;
+  generateAiRecommendationsButton.textContent = "AI提案生成中";
+  aiRecommendationBadge.textContent = "AI生成中";
+  aiRecommendationMemo.textContent = "AIが診断結果、組織タイプ、ESG、ばらつき、AI解析、AIシナリオを読み取り、組織別提案を作成しています。";
+
+  try {
+    const response = await fetch(`${AI_SCENARIO_API}/api/recommendations`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(buildRecommendationContext())
+    });
+    if (!response.ok) throw new Error(await response.text());
+    state.aiRecommendations = await response.json();
+    aiRecommendationBadge.textContent = "AI組織別提案";
+    aiRecommendationMemo.textContent = state.aiRecommendations.summary || "AIがこの組織に合わせた提案カードを生成しました。";
+  } catch (error) {
+    console.warn("AI recommendations failed. Falling back to local organization proposal.", error);
+    state.aiRecommendations = localAiRecommendations();
+    aiRecommendationBadge.textContent = "ローカルAI提案";
+    aiRecommendationMemo.textContent = state.aiRecommendations.summary;
+  } finally {
+    generateAiRecommendationsButton.disabled = false;
+    generateAiRecommendationsButton.textContent = "AIで組織別提案を生成";
+    renderRecommendations();
+  }
+}
+
+function resetAiRecommendations() {
+  state.aiRecommendations = null;
+  aiRecommendationBadge.textContent = "標準提案";
+  aiRecommendationMemo.textContent = "AI解析、診断スコア、組織モードのばらつき、AIシナリオ結果をもとに、この組織に属した提案へ更新できます。";
+  renderRecommendations();
+}
+
+function renderRecommendationCards(cards, className = "") {
+  recommendationGrid.innerHTML = cards.map((card) => `
+    <article class="recommendation-card ${className}">
+      <strong>${escapeHTML(card.title)}</strong>
+      <p>${escapeHTML(card.body)}</p>
+      <div class="target-box">
+        <span>数値目標</span>
+        <b>${escapeHTML(card.target)}</b>
+      </div>
+      <ul>${(card.list || []).map((item) => `<li>${escapeHTML(item)}</li>`).join("")}</ul>
+    </article>
+  `).join("");
+}
+
 function renderRecommendations() {
+  if (state.aiRecommendations?.cards?.length) {
+    aiRecommendationBadge.textContent = state.aiRecommendations.source || "AI組織別提案";
+    aiRecommendationMemo.textContent = state.aiRecommendations.summary || "AIがこの組織に合わせた提案カードを生成しました。";
+    renderRecommendationCards(state.aiRecommendations.cards, "is-ai-generated");
+    return;
+  }
+
+  aiRecommendationBadge.textContent = "標準提案";
   const scores = allScores();
   const weak = weakestCategories(scores, 3);
   const type = organizationType(scores);
@@ -2284,17 +2450,7 @@ function renderRecommendations() {
     }
   ];
 
-  recommendationGrid.innerHTML = cards.map((card) => `
-    <article class="recommendation-card">
-      <strong>${card.title}</strong>
-      <p>${card.body}</p>
-      <div class="target-box">
-        <span>数値目標</span>
-        <b>${card.target}</b>
-      </div>
-      <ul>${card.list.map((item) => `<li>${item}</li>`).join("")}</ul>
-    </article>
-  `).join("");
+  renderRecommendationCards(cards);
 }
 
 function renderGrowth() {
@@ -2518,6 +2674,8 @@ addMemberButton.addEventListener("click", () => {
 document.querySelector("#sampleButton").addEventListener("click", sampleAnswers);
 document.querySelector("#resetButton").addEventListener("click", resetCurrentRound);
 websiteAssessButton.addEventListener("click", assessWebsiteFromUrl);
+generateAiRecommendationsButton.addEventListener("click", generateAiRecommendations);
+resetAiRecommendationsButton.addEventListener("click", resetAiRecommendations);
 submitScenarioAnswerButton.addEventListener("click", submitScenarioAnswer);
 scenarioSampleButton.addEventListener("click", scenarioSample);
 resetScenarioButton.addEventListener("click", resetScenario);

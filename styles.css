@@ -258,6 +258,14 @@ textarea {
   line-height: 1.8;
 }
 
+.header-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  justify-content: flex-end;
+  align-items: center;
+}
+
 .eyebrow {
   color: var(--green);
   font-size: 12px;
@@ -807,6 +815,30 @@ canvas {
   background: #fff;
 }
 
+.ai-recommendation-panel {
+  margin-bottom: 16px;
+}
+
+.recommendation-card.is-ai-generated {
+  border-color: rgba(30, 125, 91, 0.28);
+  background: linear-gradient(180deg, #ffffff 0%, #f7fbf8 100%);
+}
+
+.recommendation-card.is-ai-generated > strong::before {
+  content: "AI提案";
+  display: inline-flex;
+  align-items: center;
+  min-height: 24px;
+  margin: 0 8px 0 0;
+  border-radius: 999px;
+  background: #edf7f2;
+  color: var(--green);
+  font-size: 11px;
+  font-weight: 900;
+  padding: 0 8px;
+  vertical-align: middle;
+}
+
 .target-box {
   display: grid;
   gap: 4px;
@@ -1156,6 +1188,15 @@ canvas {
 
   .page-header {
     display: grid;
+  }
+
+  .header-actions {
+    justify-content: stretch;
+  }
+
+  .header-actions .primary-button,
+  .header-actions .secondary-button {
+    width: 100%;
   }
 
   .steps,
