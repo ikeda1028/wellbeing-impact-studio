@@ -1348,12 +1348,14 @@ function inferScenarioPlanLocally() {
   const industry = isEducation ? "教育・探究学習" : isCare ? "地域医療・介護" : isManufacturing ? "製造業・現場DX" : isTourism ? "観光・地域商業" : "地域企業の人的資本・well-being事業";
   const company = companyNameInput.value.trim() || state.websiteAssessment?.companyName || "対象組織";
   const competitors = isEducation
-    ? ["大手教育プラットフォーム", "地域学習塾", "探究学習支援スタートアップ"]
+    ? ["ベネッセコーポレーション", "リクルート（スタディサプリ）", "Classi", "atama plus"]
     : isCare
-      ? ["地域医療法人", "介護DX事業者", "大手ヘルスケア企業"]
+      ? ["エムスリー", "エス・エム・エス", "Ubie", "メドレー"]
       : isManufacturing
-        ? ["同業中堅メーカー", "現場DXベンダー", "海外低コスト競合"]
-        : ["同業地域企業", "大手プラットフォーム", "DX新興企業"];
+        ? ["キーエンス", "ミスミグループ本社", "MonotaRO", "i Smart Technologies"]
+        : isTourism
+          ? ["JTB", "楽天トラベル", "リクルート（じゃらん）", "Klook"]
+          : ["リクルート", "楽天グループ", "LINEヤフー", "地域同業の有力企業"];
   const marketPlayers = isEducation
     ? ["学校管理職", "教員", "地元企業", "自治体教育担当"]
     : isCare
@@ -1370,8 +1372,8 @@ function inferScenarioPlanLocally() {
       basis: sourceText ? "会社名、URL、AI解析メモに含まれる語句から業界を推定しました。" : "入力情報が少ないため、汎用的な地域企業シナリオとして推定しました。",
       businessModel: isEducation ? "教育プログラム、探究学習支援、学校・企業連携サービス" : isCare ? "地域医療・介護支援、ケア連携、ヘルスケアDX" : isManufacturing ? "製造・品質・現場改善、DX支援、協力会社連携" : "地域顧客向けサービス、DX活用、関係者連携型事業",
       customerSegments: marketPlayers.slice(0, 3),
-      competitorBasis: "公開本文を直接確認できない場合のため、実名ではなく競合カテゴリとして設定しています。",
-      assumptions: ["会社名やURLの語句からの推定であり、正式な業界分類は手動確認が必要です。", "競合は実名確定ではなく、受講用シナリオの市場プレイヤーとして扱います。"],
+      competitorBasis: "会社名やURLから推定した業界における代表的な競合候補・比較対象です。直接競合かどうかは要確認です。",
+      assumptions: ["会社名やURLの語句からの推定であり、正式な業界分類は手動確認が必要です。", "社名は競合候補・比較対象であり、直接競合として断定しません。"],
       recommendedScenarioTheme: `${industry}で競合に先行される中、人的資本とwell-beingを強みにした差別化事業を設計する`
     },
     market: marketPlayers.slice(0, 3).join("、"),
@@ -1380,16 +1382,16 @@ function inferScenarioPlanLocally() {
     desiredImpact: "人的資本、well-being、事業性を同時に高め、ESG価値として説明できる状態にする。",
     competitors,
     marketPlayers,
-    storySeed: `${company}は${industry}領域で、${competitors[0]}や${competitors[1]}の動きを受けながら、自社らしいwell-being事業を立ち上げようとしています。`,
+    storySeed: `${company}は${industry}領域で、競合候補である${competitors[0]}や${competitors[1]}の動きを受けながら、自社らしいwell-being事業を立ち上げようとしています。`,
     scenes: [
       {
         title: "場面1: 競合が先行する中で問いを立てる",
-        prompt: `${competitors[0]}が新サービスを発表し、${marketPlayers[0]}から比較され始めました。社内では危機感と慎重論が割れています。あなたは最初の2週間で誰に何を聞き、どの問いに絞りますか。`,
+        prompt: `競合候補の${competitors[0]}が新サービスを発表し、${marketPlayers[0]}から比較され始めました。社内では危機感と慎重論が割れています。あなたは最初の2週間で誰に何を聞き、どの問いに絞りますか。`,
         focus: "探究度数・業界理解・競合比較"
       },
       {
         title: "場面2: 社内外を巻き込み実証を設計する",
-        prompt: `${competitors[1]}も地域連携を強めています。一方、社内の現場は忙しく、${marketPlayers[1]}や${marketPlayers[2]}との調整も必要です。あなたはどの部署、現場メンバー、外部関係者を巻き込み、どんな小さな実証を設計しますか。`,
+        prompt: `比較対象の${competitors[1]}も地域連携を強めています。一方、社内の現場は忙しく、${marketPlayers[1]}や${marketPlayers[2]}との調整も必要です。あなたはどの部署、現場メンバー、外部関係者を巻き込み、どんな小さな実証を設計しますか。`,
         focus: "組織OS・プロジェクト型成熟度・well-being"
       },
       {
@@ -1418,7 +1420,7 @@ function applyScenarioPlan(plan) {
   state.scenarioMessages = [
     {
       role: "ai",
-      text: `${plan.companyName || "対象組織"}の会社別AIシナリオを生成しました。推定業界は「${plan.inferredIndustry || "未設定"}」、分析確信度は${analysis.confidence ?? "--"}%です。${analysis.recommendedScenarioTheme ? `推奨テーマは「${analysis.recommendedScenarioTheme}」です。` : ""}競合や市場プレイヤーが登場する場面で判断してください。`,
+      text: `${plan.companyName || "対象組織"}の会社別AIシナリオを生成しました。推定業界は「${plan.inferredIndustry || "未設定"}」、分析確信度は${analysis.confidence ?? "--"}%です。${analysis.recommendedScenarioTheme ? `推奨テーマは「${analysis.recommendedScenarioTheme}」です。` : ""}具体的な競合候補や市場プレイヤーが登場する場面で判断してください。`,
       meta: buildScenePrompt(0)
     }
   ];
@@ -2228,7 +2230,7 @@ function renderScenario() {
     ["対象組織", plan.companyName || companyNameInput.value.trim() || "--"],
     ["事業モデル", analysis.businessModel || "--"],
     ["顧客セグメント", (analysis.customerSegments || []).join(" / ") || plan.market || "--"],
-    ["競合他社", (plan.competitors || []).join(" / ") || "--"],
+    ["競合候補（社名）", (plan.competitors || []).join(" / ") || "--"],
     ["競合設定の根拠", analysis.competitorBasis || "--"],
     ["推奨テーマ", analysis.recommendedScenarioTheme || plan.storySeed || "--"]
   ].map(([label, value]) => `
