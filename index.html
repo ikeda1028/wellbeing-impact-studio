@@ -135,17 +135,21 @@
 
           <section class="panel website-assessment-panel">
             <div class="panel-header">
-              <h2>ホームページからAI暫定診断</h2>
+              <h2>会社名・ホームページからAI暫定診断</h2>
               <span class="badge muted" id="websiteAssessBadge">未実行</span>
             </div>
             <div class="website-assessment-controls">
               <label>
-                会社・団体ホームページURL
+                会社名・団体名
+                <input id="companyNameInput" type="text" placeholder="例: 株式会社〇〇">
+              </label>
+              <label>
+                ホームページURL
                 <input id="websiteUrlInput" type="url" placeholder="https://example.co.jp">
               </label>
               <button class="primary-button" id="websiteAssessButton" type="button">AIで暫定値を入力</button>
             </div>
-            <p class="narrative" id="websiteAssessMemo">公開ホームページの情報から、01診断とESG診断に暫定値を入れます。正式な評価は、必要に応じて各設問を手で調整してください。</p>
+            <p class="narrative" id="websiteAssessMemo">会社名または公開ホームページの情報から、01診断とESG診断に暫定値を入れます。正式な評価は、必要に応じて各設問を手で調整してください。</p>
           </section>
 
           <form id="assessmentForm" class="assessment-form"></form>

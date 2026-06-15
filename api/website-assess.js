@@ -56,43 +56,52 @@ export default async function handler(request, response) {
   const apiKey = process.env.OPENAI_WBS_KEY || process.env.OPENAI_API_KEY;
   if (!apiKey) return sendJson(response, { error: "OPENAI_WBS_KEY is not configured" }, 500);
 
-  let url;
-  try {
-    url = normalizeUrl(request.body?.url);
-  } catch {
-    return sendJson(response, { error: "valid url is required" }, 400);
-  }
+  const companyName = String(request.body?.companyName || "").trim();
+  const urlInput = String(request.body?.url || "").trim();
+  if (!companyName && !urlInput) return sendJson(response, { error: "companyName or url is required" }, 400);
 
+  let url = null;
   let pageText = "";
-  try {
-    const pageResponse = await fetch(url.toString(), {
-      headers: {
-        "user-agent": "WellbeingImpactStudio/1.0 (+https://wellbeing-impact-studio)"
-      },
-      redirect: "follow",
-      signal: AbortSignal.timeout(12000)
-    });
-    if (!pageResponse.ok) {
-      return sendJson(response, { error: "Website request failed", detail: `${pageResponse.status} ${pageResponse.statusText}` }, 502);
+  if (urlInput) {
+    try {
+      url = normalizeUrl(urlInput);
+    } catch {
+      return sendJson(response, { error: "valid url is required" }, 400);
     }
-    const contentType = pageResponse.headers.get("content-type") || "";
-    const raw = await pageResponse.text();
-    pageText = contentType.includes("text/html") ? pageTextFromHtml(raw) : raw.replace(/\s+/g, " ").trim().slice(0, MAX_PAGE_TEXT);
-  } catch (error) {
-    return sendJson(response, { error: "Website could not be read", detail: error.message }, 502);
-  }
 
-  if (!pageText) return sendJson(response, { error: "Website did not include readable text" }, 422);
+    try {
+      const pageResponse = await fetch(url.toString(), {
+        headers: {
+          "user-agent": "WellbeingImpactStudio/1.0 (+https://wellbeing-impact-studio)"
+        },
+        redirect: "follow",
+        signal: AbortSignal.timeout(12000)
+      });
+      if (!pageResponse.ok) {
+        return sendJson(response, { error: "Website request failed", detail: `${pageResponse.status} ${pageResponse.statusText}` }, 502);
+      }
+      const contentType = pageResponse.headers.get("content-type") || "";
+      const raw = await pageResponse.text();
+      pageText = contentType.includes("text/html") ? pageTextFromHtml(raw) : raw.replace(/\s+/g, " ").trim().slice(0, MAX_PAGE_TEXT);
+    } catch (error) {
+      return sendJson(response, { error: "Website could not be read", detail: error.message }, 502);
+    }
+
+    if (!pageText) return sendJson(response, { error: "Website did not include readable text" }, 422);
+  }
 
   const prompt = `
-あなたは公開ホームページから、人的資本価値、探究度数、組織OS、well-being、事業性、ESG投資適格性を暫定診断するアナリストです。
-ホームページの公開情報だけを根拠に、未確認の点は控えめに評価してください。これは正式評価ではなく、01診断の下書きです。
+あなたは会社名・団体名・公開ホームページから、人的資本価値、探究度数、組織OS、well-being、事業性、ESG投資適格性を暫定診断するアナリストです。
+これは正式評価ではなく、01診断の下書きです。未確認の点は控えめに評価し、会社名だけの場合は信頼度を低めにしてください。
+
+会社名・団体名:
+${companyName || "未入力"}
 
 対象URL:
-${url.toString()}
+${url ? url.toString() : "未入力"}
 
 取得したページ本文:
-${pageText}
+${pageText || "URL未入力のためページ本文なし。会社名・団体名から推定できる範囲だけで暫定評価する。"}
 
 必ずJSONだけで返してください。Markdownや説明文は禁止です。
 {
@@ -142,5 +151,5 @@ ${pageText}
   const data = await openaiResponse.json();
   const outputText = data.output_text || data.output?.flatMap((item) => item.content || []).map((part) => part.text || "").join("") || "";
   const parsed = extractJson(outputText);
-  return sendJson(response, { ...parsed, sourceUrl: url.toString() });
+  return sendJson(response, { ...parsed, sourceUrl: url ? url.toString() : "", requestedCompanyName: companyName });
 }
