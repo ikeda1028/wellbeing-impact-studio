@@ -35,17 +35,30 @@ ${JSON.stringify(context, null, 2)}
 要件:
 - 日本語で作成
 - 会社名やURLから推定できる業界を inferredIndustry に入れる
+- industryAnalysis に、業界判断の根拠、確信度、顧客セグメント、事業モデル、競合推定の根拠、注意すべき仮定、推奨シナリオテーマを入れる
+- 確信度が低い場合は、実名競合を無理に出さず、競合カテゴリ名で表現する
+- 競合他社は「公開情報で確認できる可能性が高いもの」または「競合カテゴリ」として扱い、不確かな断定を避ける
 - competitors は実名が不確かな場合、同業大手、地域同業、DX新興企業などの一般名でよい
 - scenes は3場面
 - 各sceneのpromptには、競合他社、顧客、社内関係者、地域/市場プレイヤーのいずれかを登場させる
 - 各場面で受講者が判断を迫られる問いにする
 - 01診断の弱み、ESG、well-being、事業性を評価できるようにする
+- scenes は industryAnalysis.recommendedScenarioTheme に沿って設計する
 
 必ずJSONだけで返してください。Markdownや説明文は禁止です。
 {
   "source": "AI会社別シナリオ",
   "companyName": "推定会社名",
   "inferredIndustry": "推定業界",
+  "industryAnalysis": {
+    "confidence": 0-100,
+    "basis": "業界をそう判断した根拠",
+    "businessModel": "推定される事業モデル",
+    "customerSegments": ["顧客1", "顧客2", "顧客3"],
+    "competitorBasis": "競合をそう置いた理由。不確かな場合はカテゴリ推定と明記",
+    "assumptions": ["仮定1", "仮定2"],
+    "recommendedScenarioTheme": "この会社に最もよいシナリオテーマ"
+  },
   "market": "対象市場・顧客",
   "location": "会社や地域の文脈",
   "challenge": "組織内課題",

@@ -829,6 +829,11 @@ canvas {
   gap: 10px;
 }
 
+.scenario-company-grid .context-chip strong {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
 .recommendation-card.is-ai-generated {
   border-color: rgba(30, 125, 91, 0.28);
   background: linear-gradient(180deg, #ffffff 0%, #f7fbf8 100%);

@@ -1365,6 +1365,15 @@ function inferScenarioPlanLocally() {
     source: "ローカル会社別シナリオ",
     companyName: company,
     inferredIndustry: industry,
+    industryAnalysis: {
+      confidence: sourceText ? 62 : 38,
+      basis: sourceText ? "会社名、URL、AI解析メモに含まれる語句から業界を推定しました。" : "入力情報が少ないため、汎用的な地域企業シナリオとして推定しました。",
+      businessModel: isEducation ? "教育プログラム、探究学習支援、学校・企業連携サービス" : isCare ? "地域医療・介護支援、ケア連携、ヘルスケアDX" : isManufacturing ? "製造・品質・現場改善、DX支援、協力会社連携" : "地域顧客向けサービス、DX活用、関係者連携型事業",
+      customerSegments: marketPlayers.slice(0, 3),
+      competitorBasis: "公開本文を直接確認できない場合のため、実名ではなく競合カテゴリとして設定しています。",
+      assumptions: ["会社名やURLの語句からの推定であり、正式な業界分類は手動確認が必要です。", "競合は実名確定ではなく、受講用シナリオの市場プレイヤーとして扱います。"],
+      recommendedScenarioTheme: `${industry}で競合に先行される中、人的資本とwell-beingを強みにした差別化事業を設計する`
+    },
     market: marketPlayers.slice(0, 3).join("、"),
     location: state.websiteAssessment?.sourceLabel || "会社と地域市場",
     challenge: "競合が先に動く中で、社内の合意形成と実行体制が追いついていない。",
@@ -1393,6 +1402,7 @@ function inferScenarioPlanLocally() {
 }
 
 function applyScenarioPlan(plan) {
+  const analysis = plan.industryAnalysis || {};
   state.scenarioPlan = plan;
   state.scenarioContext = {
     industry: plan.inferredIndustry || plan.industry || "",
@@ -1408,25 +1418,38 @@ function applyScenarioPlan(plan) {
   state.scenarioMessages = [
     {
       role: "ai",
-      text: `${plan.companyName || "対象組織"}の会社別AIシナリオを生成しました。推定業界は「${plan.inferredIndustry || "未設定"}」です。競合や市場プレイヤーが登場する場面で判断してください。`,
+      text: `${plan.companyName || "対象組織"}の会社別AIシナリオを生成しました。推定業界は「${plan.inferredIndustry || "未設定"}」、分析確信度は${analysis.confidence ?? "--"}%です。${analysis.recommendedScenarioTheme ? `推奨テーマは「${analysis.recommendedScenarioTheme}」です。` : ""}競合や市場プレイヤーが登場する場面で判断してください。`,
       meta: buildScenePrompt(0)
     }
   ];
   scenarioCompanyBadge.textContent = plan.source || "AI会社別シナリオ";
-  scenarioCompanyMemo.textContent = plan.storySeed || "会社名・URLから業界と競合を推定して、実践シナリオを生成しました。";
+  scenarioCompanyMemo.textContent = analysis.basis
+    ? `業界分析: ${analysis.basis} 推奨テーマ: ${analysis.recommendedScenarioTheme || plan.storySeed || "未設定"}`
+    : plan.storySeed || "会社名・URLから業界と競合を推定して、実践シナリオを生成しました。";
   buildScenario();
   updateAll();
 }
 
 function buildScenarioGenerationContext() {
+  const scores = allScores();
   return {
     companyName: companyNameInput.value.trim(),
     url: websiteUrlInput.value.trim(),
     websiteAssessment: state.websiteAssessment,
-    scores: allScores(),
+    websiteEvidence: state.websiteAssessment?.evidence || [],
+    websiteCautions: state.websiteAssessment?.cautions || [],
+    scores,
     esgScores: allEsgScores(),
-    organizationType: organizationType(allScores()),
-    weakestCategories: weakestCategories(allScores(), 3).map((category) => category.label),
+    esgCompositeScore: esgCompositeScore(),
+    organizationType: organizationType(scores),
+    weakestCategories: weakestCategories(scores, 3).map((category) => ({
+      label: category.label,
+      score: scores[category.id]
+    })),
+    strongestCategories: strongestCategories(scores, 3).map((category) => ({
+      label: category.label,
+      score: scores[category.id]
+    })),
     existingScenarioContext: state.scenarioContext
   };
 }
@@ -1534,6 +1557,7 @@ function aggregateScenarioScores() {
 
 function buildScenario() {
   const plan = state.scenarioPlan;
+  const analysis = plan?.industryAnalysis || {};
   const context = {
     industry: state.scenarioContext.industry || "未設定の業界",
     location: state.scenarioContext.location || "未設定の場所",
@@ -1610,8 +1634,8 @@ function buildScenario() {
       executionRisk,
       impactIndex
     },
-    title: plan ? `${plan.companyName || context.location}の${context.industry} 競合対応シナリオ` : `${context.location}における${context.industry}のwell-being事業化シナリオ`,
-    story: plan ? `${plan.storySeed} ${context.market}と${(plan.competitors || []).slice(0, 2).join("、")}の動きを見ながら、${type.label}への移行を進めます。${strong.map((item) => item.short).join("と")}を強みに、${weak.map((item) => item.short).join("と")}を補強します。あなたの場面判断では、探究${scenarioJudgement.inquiry}、組織調整${scenarioJudgement.org}、well-being${scenarioJudgement.wellbeing}、事業性${scenarioJudgement.business}、ESG説明力${scenarioJudgement.esg}として測定されています。` : `${context.market}が抱える未充足の課題を起点に、${type.label}への移行を進めながら、現場発の小さなプロジェクトを立ち上げます。${strong.map((item) => item.short).join("と")}を強みに、${weak.map((item) => item.short).join("と")}を補強します。あなたの場面判断では、探究${scenarioJudgement.inquiry}、組織調整${scenarioJudgement.org}、well-being${scenarioJudgement.wellbeing}、事業性${scenarioJudgement.business}、ESG説明力${scenarioJudgement.esg}として測定されています。`,
+    title: plan ? `${plan.companyName || context.location}の${context.industry} 分析型シナリオ` : `${context.location}における${context.industry}のwell-being事業化シナリオ`,
+    story: plan ? `${plan.storySeed} AI業界分析では「${analysis.recommendedScenarioTheme || "競合環境を踏まえた差別化事業設計"}」が推奨テーマです。${context.market}と${(plan.competitors || []).slice(0, 2).join("、")}の動きを見ながら、${type.label}への移行を進めます。${strong.map((item) => item.short).join("と")}を強みに、${weak.map((item) => item.short).join("と")}を補強します。あなたの場面判断では、探究${scenarioJudgement.inquiry}、組織調整${scenarioJudgement.org}、well-being${scenarioJudgement.wellbeing}、事業性${scenarioJudgement.business}、ESG説明力${scenarioJudgement.esg}として測定されています。` : `${context.market}が抱える未充足の課題を起点に、${type.label}への移行を進めながら、現場発の小さなプロジェクトを立ち上げます。${strong.map((item) => item.short).join("と")}を強みに、${weak.map((item) => item.short).join("と")}を補強します。あなたの場面判断では、探究${scenarioJudgement.inquiry}、組織調整${scenarioJudgement.org}、well-being${scenarioJudgement.wellbeing}、事業性${scenarioJudgement.business}、ESG説明力${scenarioJudgement.esg}として測定されています。`,
     hypothesis: [
       `${context.market}に対して、困りごとの可視化と支援導線を一体化したサービスを検証する`,
       `組織内では、管理職承認に依存しすぎない90日プロジェクトとして運用する`,
@@ -2197,11 +2221,16 @@ async function generateResultDashboardImage() {
 function renderScenario() {
   ensureScenarioStarted();
   const plan = state.scenarioPlan;
+  const analysis = plan?.industryAnalysis || {};
   scenarioCompanyGrid.innerHTML = plan ? [
     ["推定業界", plan.inferredIndustry || "--"],
+    ["分析確信度", analysis.confidence !== undefined ? `${analysis.confidence}%` : "--"],
     ["対象組織", plan.companyName || companyNameInput.value.trim() || "--"],
+    ["事業モデル", analysis.businessModel || "--"],
+    ["顧客セグメント", (analysis.customerSegments || []).join(" / ") || plan.market || "--"],
     ["競合他社", (plan.competitors || []).join(" / ") || "--"],
-    ["市場プレイヤー", (plan.marketPlayers || []).join(" / ") || "--"]
+    ["競合設定の根拠", analysis.competitorBasis || "--"],
+    ["推奨テーマ", analysis.recommendedScenarioTheme || plan.storySeed || "--"]
   ].map(([label, value]) => `
     <div class="context-chip">
       <span>${label}</span>
