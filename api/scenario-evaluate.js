@@ -28,6 +28,7 @@ export default async function handler(request, response) {
   const prompt = `
 あなたは人的資本価値、探究学習、組織開発、well-being、ESG投資適格性を評価する教育シミュレーターです。
 受講者の自由記述回答を、実践判断として測定してください。
+回答が複雑なシナリオ場面に対して、制約条件、利害対立、競合対応、ステークホルダー、リスク管理、判断しないことのリスクまで扱えているかを見てください。
 
 評価対象の文脈:
 ${JSON.stringify(context, null, 2)}

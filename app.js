@@ -1445,20 +1445,30 @@ function inferScenarioPlanLocally() {
     storySeed: `${company}は${industry}領域で、競合候補である${competitors[0]}や${competitors[1]}の動きを受けながら、自社らしいwell-being事業を立ち上げようとしています。`,
     scenes: [
       {
-        title: "場面1: 競合が先行する中で問いを立てる",
-        prompt: `競合候補の${competitors[0]}が新サービスを発表し、${marketPlayers[0]}から比較され始めました。社内では危機感と慎重論が割れています。あなたは最初の2週間で誰に何を聞き、どの問いに絞りますか。`,
-        focus: "探究度数・業界理解・競合比較"
+        title: "場面1: 初動調査と問いの設定",
+        prompt: `競合候補の${competitors[0]}が新サービスを発表し、${marketPlayers[0]}から比較され始めました。制約は2週間、予算30万円、調査できる相手は5名までです。営業部はすぐ商品化したい一方、現場は負荷増を警戒し、管理職は失敗時の説明責任を気にしています。さらに主要顧客から「来月までに方針を聞きたい」と連絡が入りました。あなたは誰に何を聞き、どの問いに絞り、何をまだ判断しないと決めますか。判断を遅らせた場合のリスクも含めて答えてください。`,
+        focus: "探究度数・業界理解・競合比較・優先順位"
       },
       {
-        title: "場面2: 社内外を巻き込み実証を設計する",
-        prompt: `比較対象の${competitors[1]}も地域連携を強めています。一方、社内の現場は忙しく、${marketPlayers[1]}や${marketPlayers[2]}との調整も必要です。あなたはどの部署、現場メンバー、外部関係者を巻き込み、どんな小さな実証を設計しますか。`,
-        focus: "組織OS・プロジェクト型成熟度・well-being"
+        title: "場面2: 社内対立と巻き込み設計",
+        prompt: `比較対象の${competitors[1]}も地域連携を強めています。社内では、経営企画は事業性、現場責任者は人員不足、若手メンバーは挑戦機会、管理部門はリスク管理を主張しています。制約は90日、兼務メンバー3名、既存業務を止められないことです。${marketPlayers[1]}や${marketPlayers[2]}との協力も必要ですが、相手側も慎重です。あなたは誰を意思決定者・実行者・支援者に置き、どの合意形成プロセスで進めますか。反対者への対応も含めて答えてください。`,
+        focus: "組織OS・プロジェクト型成熟度・合意形成・well-being"
       },
       {
-        title: "場面3: 事業性とESG価値を説明する",
-        prompt: `実証後、取締役会では投資判断、競合優位、ESG説明が問われています。${competitors[2]}との差別化を示しながら、どのKPIを置き、どんなリスクを管理し、投資家や地域関係者にどう説明しますか。`,
-        focus: "事業性・ESG投資適格性・説明責任"
-      }
+        title: "場面3: 競合対応と差別化判断",
+        prompt: `${competitors[2]}が価格を下げた類似施策を発表しました。社内からは「価格で対抗すべき」「独自性を出すべき」「撤退すべき」という3案が出ています。顧客は短期成果を求め、現場は品質低下を恐れ、投資家候補はESG価値の説明を求めています。あなたは競合に対して何で勝ち、何では戦わないと決めますか。差別化仮説、検証方法、撤退基準をセットで答えてください。`,
+        focus: "事業性・競争優位・仮説検証・意思決定"
+      },
+      {
+        title: "場面4: 実証中のトラブル対応",
+        prompt: `実証開始後、参加者の満足度は高い一方、現場メンバーの残業が増え、${marketPlayers[0]}から個人情報や説明不足への懸念が出ました。同時に、${competitors[0]}が大規模キャンペーンを始め、社内では「このまま継続するか、一度止めるか」で意見が割れています。あなたはwell-beingを下げずに実証を続けるため、どのKPIを見直し、どのリスクを即時対応し、誰にどう説明しますか。`,
+        focus: "well-being・リスク管理・実証改善・ステークホルダー対応"
+      },
+      {
+        title: "場面5: 投資判断とESG説明",
+        prompt: `90日実証の結果、顧客反応は良いものの収益化には追加投資が必要です。取締役会では、競合候補の${competitors[1]}との差別化、人的資本価値の向上、地域well-being、ESG投資適格性を同時に説明する必要があります。あなたは継続・縮小・撤退のどれを提案し、どの数値目標、リスク管理、開示ストーリーで承認を取りに行きますか。`,
+        focus: "ESG投資適格性・事業判断・人的資本価値・説明責任"
+      },
     ]
   };
 }
@@ -1545,7 +1555,7 @@ function buildScenePrompt(index) {
   const scene = activeScenarioScenes()[index];
   if (!scene) return "すべての場面が完了しました。結果画面で診断との差分を確認してください。";
   const context = state.scenarioContext;
-  return `${scene.title}\n${scene.prompt}\n\n文脈: ${context.industry} / ${context.location} / ${context.market}\n評価焦点: ${scene.focus}`;
+  return `${scene.title}\n${scene.prompt}\n\n文脈: ${context.industry} / ${context.location} / ${context.market}\n評価焦点: ${scene.focus}\n回答観点: 制約条件、利害対立、競合対応、ステークホルダー、KPI、判断しない場合のリスクまで含めてください。`;
 }
 
 function scoreScenarioResponse(text, sceneIndex) {
@@ -1561,19 +1571,23 @@ function scoreScenarioResponse(text, sceneIndex) {
   if (contains(["問い", "仮説", "なぜ", "課題", "リサーチ", "調査", "比較", "分析", "データ"])) score.inquiry += 18;
   if (contains(["ヒアリング", "インタビュー", "現場", "住民", "顧客", "当事者", "一次情報"])) score.inquiry += 18;
   if (contains(["整理", "優先", "検証", "実験", "プロトタイプ", "小さく"])) score.inquiry += 12;
+  if (contains(["制約", "予算", "期限", "人員", "優先順位", "判断しない", "遅らせ"])) score.inquiry += 10;
 
   if (contains(["管理職", "上司", "合意", "役割", "権限", "チーム", "部門", "巻き込"])) score.org += 18;
   if (contains(["目的", "成果指標", "90日", "振り返り", "会議", "責任者"])) score.org += 16;
   if (contains(["心理的安全", "負荷", "孤立", "対話", "支援", "信頼"])) score.org += 12;
+  if (contains(["利害", "対立", "反対", "意思決定者", "実行者", "支援者", "合意形成"])) score.org += 12;
 
   if (contains(["well-being", "幸福", "暮らし", "つながり", "包摂", "弱い立場", "地域", "参加"])) score.wellbeing += 22;
   if (contains(["従業員", "働きがい", "安心", "健康", "学習", "挑戦"])) score.wellbeing += 14;
 
   if (contains(["収益", "価格", "費用", "コスト", "資金", "顧客", "支払い", "継続", "事業"])) score.business += 22;
   if (contains(["KPI", "指標", "売上", "利用", "継続率", "効果", "ROI"])) score.business += 16;
+  if (contains(["競合", "差別化", "撤退基準", "市場", "代替", "勝ち筋", "戦わない"])) score.business += 14;
 
   if (contains(["ESG", "開示", "投資家", "ガバナンス", "リスク", "環境", "気候", "人権", "KPI", "説明責任"])) score.esg += 22;
   if (contains(["測定", "目標", "根拠", "レポート", "透明性", "監督", "管理"])) score.esg += 14;
+  if (contains(["個人情報", "プライバシー", "説明", "同意", "監査", "取締役会", "人的資本"])) score.esg += 12;
 
   if (text.length > 80) {
     score.inquiry += 6;
@@ -1591,6 +1605,16 @@ function scoreScenarioResponse(text, sceneIndex) {
   if (sceneIndex === 2) {
     score.business += 12;
     score.esg += 12;
+  }
+  if (sceneIndex === 3) {
+    score.org += 8;
+    score.wellbeing += 12;
+    score.esg += 8;
+  }
+  if (sceneIndex === 4) {
+    score.business += 10;
+    score.esg += 14;
+    score.org += 6;
   }
 
   return Object.fromEntries(Object.entries(score).map(([key, value]) => [key, clamp(value, 0, 100)]));
@@ -2318,7 +2342,7 @@ function renderScenario() {
     scenarioOptions.innerHTML = `
       <span>回答に含めると測定されやすい観点</span>
       <div class="option-chip-row">
-        ${["問い・仮説", "ヒアリング", "関係者", "小さな実証", "KPI", "リスク", "well-being", "事業性", "ESG開示"].map((option) => `<button class="option-chip" type="button" data-scenario-option="${escapeHTML(option)}">${escapeHTML(option)}</button>`).join("")}
+        ${["制約条件", "利害対立", "競合対応", "ステークホルダー", "仮説検証", "KPI", "撤退基準", "未判断リスク", "well-being", "ESG開示"].map((option) => `<button class="option-chip" type="button" data-scenario-option="${escapeHTML(option)}">${escapeHTML(option)}</button>`).join("")}
       </div>
     `;
   } else {
@@ -2624,7 +2648,7 @@ function renderRecommendations() {
       body: scenario ? `AIシナリオ総合指数は${scenario.scores.impactIndex}です。事業性とwell-beingの両面から実証優先度を判断します。` : "AIシナリオを生成すると、文脈を加味した事業性とwell-beingインパクトがここに反映されます。",
       target: scenarioScores
         ? `市場適合 ${scenarioScores.marketFit} -> ${liftTarget(scenarioScores.marketFit, 8)} / 実行リスク ${scenarioScores.executionRisk} -> ${Math.max(0, scenarioScores.executionRisk - 8)}`
-        : "AIシナリオ3場面を完了し、文脈スコアを算出",
+        : "AIシナリオ5場面を完了し、文脈スコアを算出",
       list: scenario ? [
         `市場適合: ${scenario.scores.marketFit}`,
         `組織実装力: ${scenario.scores.orgReadiness}`,
@@ -2678,7 +2702,7 @@ function renderRecommendations() {
     {
       title: "AIシミュレーション",
       body: "上司、地域住民、顧客、自治体担当者の反応をAIが演じ、提案の実践力を測ります。",
-      target: "3場面×2回の再演習で、実践判断スコア80点以上を目指す",
+      target: "5場面×2回の再演習で、実践判断スコア80点以上を目指す",
       list: [
         "提案への反論対応",
         "地域関係者との合意形成",
@@ -2814,7 +2838,9 @@ function scenarioSample() {
   const answers = [
     "最初の2週間は、生徒、教員、地元企業、自治体にヒアリングし、なぜ探究が事業化につながらないのか問いを立てます。既存事例と地域データを調査し、課題を比較分析して優先テーマを絞ります。",
     "教員の負荷を増やさないよう、役割と責任者を明確にした90日プロジェクトを作ります。管理職、企業、地域コーディネーターを巻き込み、小さなプロトタイプを実験して振り返ります。",
-    "KPIは参加生徒数、地域企業の課題解決件数、継続率、満足度、well-being変化、収益とコストにします。リスクは教員負荷、個人情報、成果の偏りで、投資家にはESG、人的資本、地域インパクトとして開示します。"
+    "競合と価格だけで戦わず、地域企業の実課題と生徒の探究をつなぐ独自性で差別化します。仮説は企業課題の解決率と生徒の探究度数向上を同時に測り、撤退基準は継続率と教員負荷で置きます。",
+    "実証中に残業や個人情報の懸念が出たら、参加者満足だけでなく教員負荷、説明同意、相談件数をKPIに加えます。リスクの高い運用は一度止め、自治体と学校管理職へ改善策を説明します。",
+    "継続提案を選びます。数値目標は参加生徒数、企業課題解決件数、教員負荷の削減、well-being変化、収益見込みに置きます。取締役会には人的資本、地域インパクト、ESG開示の根拠として説明します。"
   ];
   state.scenarioResponses = answers.map((answer, index) => ({
     scene: activeScenarioScenes()[index].title,
@@ -2822,7 +2848,7 @@ function scenarioSample() {
     score: scoreScenarioResponse(answer, index)
   }));
   state.scenarioMessages = [
-    { role: "ai", text: "サンプルの基本情報を入力しました。", meta: "3つの場面回答もサンプルで測定しています。" },
+    { role: "ai", text: "サンプルの基本情報を入力しました。", meta: "5つの複雑な場面回答もサンプルで測定しています。" },
     ...answers.flatMap((answer, index) => [
       { role: "ai", text: buildScenePrompt(index) },
       { role: "user", text: answer }
