@@ -234,6 +234,28 @@
             </div>
             <div class="summary-grid" id="summaryGrid"></div>
           </section>
+
+          <section class="panel image-panel">
+            <div class="panel-header">
+              <h2>AI結果ダッシュボード画像</h2>
+              <span class="badge muted" id="resultImageBadge">image2</span>
+            </div>
+            <div class="image-generator-layout">
+              <div class="generated-image-wrap">
+                <canvas id="resultImageCanvas" width="1200" height="720" aria-label="AIで生成された結果ダッシュボード画像"></canvas>
+              </div>
+              <div class="image-prompt-panel">
+                <label>
+                  結果画像プロンプト
+                  <textarea id="resultImagePromptText" rows="9" readonly>診断結果から、結果ダッシュボード用の画像生成プロンプトが表示されます。</textarea>
+                </label>
+                <div class="controls-row">
+                  <button class="primary-button" id="generateResultImageButton" type="button">image2で結果画像生成</button>
+                  <button class="secondary-button" id="downloadResultImageButton" type="button">PNG保存</button>
+                </div>
+              </div>
+            </div>
+          </section>
         </section>
 
         <section class="view" id="scenario">

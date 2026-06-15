@@ -254,6 +254,11 @@ const generatedImageCanvas = document.querySelector("#generatedImageCanvas");
 const imagePromptText = document.querySelector("#imagePromptText");
 const generateImageButton = document.querySelector("#generateImageButton");
 const downloadImageButton = document.querySelector("#downloadImageButton");
+const resultImageCanvas = document.querySelector("#resultImageCanvas");
+const resultImagePromptText = document.querySelector("#resultImagePromptText");
+const generateResultImageButton = document.querySelector("#generateResultImageButton");
+const downloadResultImageButton = document.querySelector("#downloadResultImageButton");
+const resultImageBadge = document.querySelector("#resultImageBadge");
 const esgForm = document.querySelector("#esgForm");
 const esgGradeBadge = document.querySelector("#esgGradeBadge");
 const esgTotalScore = document.querySelector("#esgTotalScore");
@@ -1524,6 +1529,41 @@ function buildImagePrompt() {
   ].join("\n");
 }
 
+function buildResultDashboardPrompt() {
+  const scores = allScores();
+  const total = weightedScore(scores);
+  const type = organizationType(scores);
+  const esgScore = esgCompositeScore();
+  const esgStatus = esgGrade(esgScore);
+  const scenario = state.scenario;
+  const strong = strongestCategories(scores, 2).map((item) => `${item.short} ${scores[item.id]}`).join("、");
+  const weak = weakestCategories(scores, 2).map((item) => `${item.short} ${scores[item.id]}`).join("、");
+  const scoreText = categories.map((category) => `${category.short}: ${scores[category.id]}`).join(", ");
+  const orgStats = state.assessmentMode === "organization" ? organizationStats() : null;
+  const orgText = orgStats
+    ? `組織モード: 回答者 ${orgStats.respondents.length}/${orgStats.members.length}、合意度 ${orgStats.consensus}、総合ばらつき ${orgStats.variance}、回答カバー率 ${orgStats.coverage}%`
+    : "個人モード: 個人の人的資本価値と実践判断を可視化";
+  const scenarioText = scenario
+    ? `AIシナリオ: ${scenario.title}。総合指数 ${scenario.scores.impactIndex}、市場適合 ${scenario.scores.marketFit}、組織実装力 ${scenario.scores.orgReadiness}、well-being ${scenario.scores.wellbeingImpact}、事業可能性 ${scenario.scores.businessPotential}、実行リスク ${scenario.scores.executionRisk}`
+    : "AIシナリオ未完了: 自己診断とESGの現在値を中心に可視化";
+
+  resultImagePromptText.value = [
+    "日本語サービスの結果ダッシュボードを象徴する横長ビジュアルを生成する。",
+    `総合人的資本価値: ${total}`,
+    `組織タイプ: ${type.label}`,
+    `ESG投資適格性: ${esgScore || "--"} / ${esgStatus.label}`,
+    `強み: ${strong}`,
+    `伸びしろ: ${weak}`,
+    orgText,
+    scenarioText,
+    `カテゴリスコア: ${scoreText}`,
+    "画面構成: 中央に人的資本価値の大きな円形指標、左に組織OSと探究度数、右にESG投資適格性と事業性、下部にwell-being波及と組織のばらつきが見えるグラフ群。",
+    "表現方針: 投資家・経営会議で見せられる清潔で信頼感のあるSaaSダッシュボード。細かい文字は入れず、カード、チャート、ネットワーク、レーダー、バーで数値評価の雰囲気を表現。過度な装飾なし、明るい自然光、プロフェッショナル。"
+  ].join("\n");
+
+  return resultImagePromptText.value;
+}
+
 function drawRoundedRect(ctx, x, y, width, height, radius) {
   ctx.beginPath();
   ctx.moveTo(x + radius, y);
@@ -1708,6 +1748,123 @@ function generateLocalScenarioImage() {
   });
 }
 
+function generateLocalResultDashboardImage() {
+  if (!resultImageCanvas) return;
+  const canvas = resultImageCanvas;
+  const ctx = canvas.getContext("2d");
+  const width = canvas.width;
+  const height = canvas.height;
+  const scores = allScores();
+  const total = weightedScore(scores);
+  const type = organizationType(scores);
+  const esgScore = esgCompositeScore();
+  const scenario = state.scenario;
+  const stats = state.assessmentMode === "organization" ? organizationStats() : null;
+
+  buildResultDashboardPrompt();
+  resultImageBadge.textContent = "プレビュー";
+
+  const gradient = ctx.createLinearGradient(0, 0, width, height);
+  gradient.addColorStop(0, "#f7fbf8");
+  gradient.addColorStop(0.5, "#e9f5ef");
+  gradient.addColorStop(1, "#eef4fb");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, width, height);
+
+  ctx.fillStyle = "rgba(30, 125, 91, 0.08)";
+  ctx.beginPath();
+  ctx.arc(1080, 110, 250, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.fillStyle = "rgba(45, 104, 177, 0.07)";
+  ctx.beginPath();
+  ctx.arc(120, 660, 280, 0, Math.PI * 2);
+  ctx.fill();
+
+  ctx.fillStyle = "#16201d";
+  ctx.font = "800 39px sans-serif";
+  fitText(ctx, "統合結果ダッシュボード", 58, 68, 720, 46, 1);
+  ctx.font = "600 18px sans-serif";
+  ctx.fillStyle = "#52605b";
+  fitText(ctx, `${state.assessmentMode === "organization" ? "組織" : "個人"} / ${type.label} / ESG ${esgScore || "--"}`, 60, 105, 820, 28, 1);
+
+  drawNode(ctx, {
+    x: 60,
+    y: 150,
+    w: 360,
+    h: 260,
+    fill: "#1e7d5b",
+    color: "#ffffff",
+    bodyColor: "#eaf6f0",
+    title: `人的資本 ${total}`,
+    body: `強み: ${strongestCategories(scores, 2).map((item) => item.short).join(" / ")}\n伸びしろ: ${weakestCategories(scores, 2).map((item) => item.short).join(" / ")}`
+  });
+
+  const cardNodes = [
+    ["組織OS", Math.round((scores.autonomy + scores.project + scores.leadership) / 3), 460, 150, "#ffffff"],
+    ["well-being", Math.round((scores.orgWellbeing + scores.regional) / 2), 790, 150, "#ffffff"],
+    ["ESG適格性", esgScore || 0, 460, 324, "#ffffff"],
+    ["事業性", scenario ? scenario.scores.businessPotential : scores.business, 790, 324, "#ffffff"]
+  ];
+  cardNodes.forEach(([label, value, x, y, fill]) => {
+    drawNode(ctx, {
+      x,
+      y,
+      w: 290,
+      h: 136,
+      fill,
+      title: `${label} ${value || "--"}`,
+      body: label === "ESG適格性" ? esgGrade(esgScore).label : "指標を統合して可視化"
+    });
+    ctx.fillStyle = "#d9e1dc";
+    drawRoundedRect(ctx, x + 22, y + 102, 180, 12, 6);
+    ctx.fill();
+    ctx.fillStyle = label === "ESG適格性" ? "#b85353" : "#1f8a99";
+    drawRoundedRect(ctx, x + 22, y + 102, 180 * ((value || 0) / 100), 12, 6);
+    ctx.fill();
+  });
+
+  const barItems = categories.map((category) => [category.short, scores[category.id]]);
+  const barX = 60;
+  const barY = 460;
+  ctx.fillStyle = "#ffffff";
+  drawRoundedRect(ctx, barX, barY, 670, 196, 18);
+  ctx.fill();
+  ctx.strokeStyle = "rgba(22, 32, 29, 0.1)";
+  ctx.stroke();
+  ctx.fillStyle = "#16201d";
+  ctx.font = "800 22px sans-serif";
+  ctx.fillText("カテゴリ別スコア", barX + 24, barY + 38);
+  barItems.forEach(([label, value], index) => {
+    const x = barX + 26 + (index % 2) * 320;
+    const y = barY + 68 + Math.floor(index / 2) * 32;
+    ctx.fillStyle = "#52605b";
+    ctx.font = "700 14px sans-serif";
+    ctx.fillText(label, x, y + 11);
+    ctx.fillStyle = "#e2ebe5";
+    drawRoundedRect(ctx, x + 92, y, 170, 12, 6);
+    ctx.fill();
+    ctx.fillStyle = value >= 70 ? "#1e7d5b" : value >= 55 ? "#bd7b22" : "#b85353";
+    drawRoundedRect(ctx, x + 92, y, 170 * (value / 100), 12, 6);
+    ctx.fill();
+    ctx.fillStyle = "#16201d";
+    ctx.fillText(String(value), x + 274, y + 12);
+  });
+
+  drawNode(ctx, {
+    x: 760,
+    y: 500,
+    w: 360,
+    h: 156,
+    fill: "#ffffff",
+    title: stats ? `ばらつき ${stats.variance}` : "AIシナリオ",
+    body: stats
+      ? `合意度 ${stats.consensus} / 回答者 ${stats.respondents.length}/${stats.members.length} / カバー率 ${stats.coverage}%`
+      : scenario
+        ? `総合指数 ${scenario.scores.impactIndex} / 市場 ${scenario.scores.marketFit} / WB ${scenario.scores.wellbeingImpact}`
+        : "02を完了すると実践判断が反映されます"
+  });
+}
+
 async function generateScenarioImage() {
   const prompt = buildImagePrompt();
   imagePromptText.value = prompt;
@@ -1737,6 +1894,40 @@ async function generateScenarioImage() {
   } finally {
     generateImageButton.disabled = false;
     generateImageButton.textContent = "AI画像生成";
+  }
+}
+
+async function generateResultDashboardImage() {
+  const prompt = buildResultDashboardPrompt();
+  generateResultImageButton.disabled = true;
+  generateResultImageButton.textContent = "image2生成中";
+  resultImageBadge.textContent = "生成中";
+
+  try {
+    const response = await fetch(`${AI_IMAGE_API}/api/image-generate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ prompt })
+    });
+    if (!response.ok) throw new Error(await response.text());
+
+    const data = await response.json();
+    const image = new Image();
+    image.onload = () => {
+      const canvas = resultImageCanvas;
+      const ctx = canvas.getContext("2d");
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
+      resultImageBadge.textContent = "image2生成済み";
+    };
+    image.src = `data:image/png;base64,${data.imageBase64}`;
+  } catch (error) {
+    console.warn("AI result dashboard image generation failed. Falling back to local canvas.", error);
+    generateLocalResultDashboardImage();
+    resultImageBadge.textContent = "ローカル表示";
+  } finally {
+    generateResultImageButton.disabled = false;
+    generateResultImageButton.textContent = "image2で結果画像生成";
   }
 }
 
@@ -2042,6 +2233,7 @@ function updateAll() {
   renderMatrix();
   drawRadar();
   renderSummary();
+  generateLocalResultDashboardImage();
   renderScenario();
   renderEsg();
   renderRecommendations();
@@ -2130,6 +2322,13 @@ function downloadGeneratedImage() {
   link.click();
 }
 
+function downloadResultDashboardImage() {
+  const link = document.createElement("a");
+  link.download = "wellbeing-impact-results-dashboard.png";
+  link.href = resultImageCanvas.toDataURL("image/png");
+  link.click();
+}
+
 function resetCurrentRound() {
   currentProfile().answers[state.round] = {};
   currentProfile().esgAnswers = {};
@@ -2214,6 +2413,8 @@ scenarioOptions.addEventListener("click", (event) => {
 });
 generateImageButton.addEventListener("click", generateScenarioImage);
 downloadImageButton.addEventListener("click", downloadGeneratedImage);
+generateResultImageButton.addEventListener("click", generateResultDashboardImage);
+downloadResultImageButton.addEventListener("click", downloadResultDashboardImage);
 coverStartButton.addEventListener("click", () => {
   document.querySelector(".page-header")?.scrollIntoView({ behavior: "smooth", block: "start" });
 });

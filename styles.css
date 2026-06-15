@@ -1003,7 +1003,8 @@ canvas {
   overflow: hidden;
 }
 
-#generatedImageCanvas {
+#generatedImageCanvas,
+#resultImageCanvas {
   display: block;
   width: 100%;
   height: auto;
