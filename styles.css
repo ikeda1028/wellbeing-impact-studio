@@ -326,6 +326,25 @@ textarea {
   display: inline-flex !important;
 }
 
+.website-assessment-panel {
+  margin-bottom: 18px;
+}
+
+.website-assessment-controls {
+  display: grid;
+  grid-template-columns: minmax(260px, 1fr) auto;
+  gap: 12px;
+  align-items: end;
+}
+
+.website-assessment-controls label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
 select,
 input,
 textarea {
@@ -1099,6 +1118,7 @@ canvas {
   .esg-layout,
   .image-generator-layout,
   .growth-layout,
+  .website-assessment-controls,
   .cover-panel {
     grid-template-columns: 1fr;
   }

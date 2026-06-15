@@ -133,6 +133,21 @@
             <p class="narrative">複数メンバーが同じ診断に回答すると、結果画面で組織の人的資本価値、組織OS、well-being、ESG適格性を平均・合意度・ばらつきとして評価します。</p>
           </section>
 
+          <section class="panel website-assessment-panel">
+            <div class="panel-header">
+              <h2>ホームページからAI暫定診断</h2>
+              <span class="badge muted" id="websiteAssessBadge">未実行</span>
+            </div>
+            <div class="website-assessment-controls">
+              <label>
+                会社・団体ホームページURL
+                <input id="websiteUrlInput" type="url" placeholder="https://example.co.jp">
+              </label>
+              <button class="primary-button" id="websiteAssessButton" type="button">AIで暫定値を入力</button>
+            </div>
+            <p class="narrative" id="websiteAssessMemo">公開ホームページの情報から、01診断とESG診断に暫定値を入れます。正式な評価は、必要に応じて各設問を手で調整してください。</p>
+          </section>
+
           <form id="assessmentForm" class="assessment-form"></form>
 
           <section class="diagnosis-subsection" aria-label="ESG投資適格性診断">

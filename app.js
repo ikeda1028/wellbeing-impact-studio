@@ -220,6 +220,10 @@ const memberNameInput = document.querySelector("#memberNameInput");
 const memberRoleInput = document.querySelector("#memberRoleInput");
 const addMemberButton = document.querySelector("#addMemberButton");
 const activeMemberBadge = document.querySelector("#activeMemberBadge");
+const websiteUrlInput = document.querySelector("#websiteUrlInput");
+const websiteAssessButton = document.querySelector("#websiteAssessButton");
+const websiteAssessBadge = document.querySelector("#websiteAssessBadge");
+const websiteAssessMemo = document.querySelector("#websiteAssessMemo");
 const coverCanvas = document.querySelector("#coverCanvas");
 const coverStartButton = document.querySelector("#coverStartButton");
 const answeredCount = document.querySelector("#answeredCount");
@@ -359,6 +363,114 @@ const AI_IMAGE_API =
   localStorage.getItem("WELLBEING_AI_IMAGE_API_BASE") ||
   localStorage.getItem("WELLBEING_AI_API_BASE") ||
   "";
+
+function scoreToScale(score) {
+  const value = Number(score);
+  if (!Number.isFinite(value)) return 3;
+  return Math.max(1, Math.min(5, Math.round(value / 20)));
+}
+
+function fillAnswersFromCategoryScores(scores = {}) {
+  categories.forEach((category) => {
+    const value = scoreToScale(scores[category.id]);
+    category.questions.forEach((_, questionIndex) => {
+      currentAnswers()[questionKey(category.id, questionIndex)] = value;
+    });
+  });
+}
+
+function fillEsgAnswersFromScores(scores = {}) {
+  esgCategories.forEach((category) => {
+    const value = scoreToScale(scores[category.id]);
+    category.questions.forEach((_, questionIndex) => {
+      currentEsgAnswers()[esgQuestionKey(category.id, questionIndex)] = value;
+    });
+  });
+}
+
+function localWebsiteAssessment(url) {
+  const text = String(url || "").toLowerCase();
+  const hasEdu = /school|edu|academy|learning|tla|manabi|探究|教育/.test(text);
+  const hasGov = /city|town|pref|lg|go\\.jp|地域|自治体/.test(text);
+  const hasCorp = /co\\.jp|corp|company|inc|事業|株式会社/.test(text);
+  const base = hasEdu ? 62 : hasGov ? 58 : hasCorp ? 56 : 52;
+  return {
+    companyName: "",
+    confidence: 35,
+    scores: {
+      human: base + 2,
+      inquiry: hasEdu ? base + 10 : base,
+      autonomy: base - 4,
+      project: base - 2,
+      leadership: base - 3,
+      orgWellbeing: base,
+      regional: hasGov || hasEdu ? base + 8 : base - 2,
+      business: hasCorp ? base + 8 : base - 1
+    },
+    esgScores: {
+      esgGovernance: base - 2,
+      esgStrategy: hasCorp ? base + 5 : base,
+      esgRisk: base - 4,
+      esgMetrics: base - 6,
+      esgImpact: hasGov || hasEdu ? base + 7 : base,
+      esgClimate: base - 5
+    },
+    summary: "AI APIに接続できないため、URL文字列から暫定値を入れました。公開情報に基づく正式な推定にはVercel APIとOpenAIキーが必要です。",
+    evidence: ["URL内の語句から領域を推定"],
+    cautions: ["本文を読めていないため、必ず手動で確認してください。"]
+  };
+}
+
+function applyWebsiteAssessment(result, fallbackUrl = "") {
+  fillAnswersFromCategoryScores(result.scores || {});
+  fillEsgAnswersFromScores(result.esgScores || {});
+  renderForm();
+  renderEsgForm();
+
+  const evidence = (result.evidence || []).slice(0, 3).join(" / ");
+  const cautions = (result.cautions || []).slice(0, 2).join(" / ");
+  websiteAssessBadge.textContent = `暫定入力 ${Math.round(result.confidence || 0)}%`;
+  websiteAssessMemo.textContent = [
+    result.companyName ? `${result.companyName}を暫定診断しました。` : "ホームページから暫定診断しました。",
+    result.summary || "",
+    evidence ? `根拠: ${evidence}` : "",
+    cautions ? `注意: ${cautions}` : "",
+    result.sourceUrl || fallbackUrl ? `対象: ${result.sourceUrl || fallbackUrl}` : ""
+  ].filter(Boolean).join(" ");
+  updateAll();
+}
+
+async function assessWebsiteFromUrl() {
+  const url = websiteUrlInput.value.trim();
+  if (!url) {
+    websiteAssessBadge.textContent = "URL未入力";
+    websiteAssessMemo.textContent = "会社・団体のホームページURLを入力してください。";
+    return;
+  }
+
+  websiteAssessButton.disabled = true;
+  websiteAssessButton.textContent = "AI診断中";
+  websiteAssessBadge.textContent = "取得中";
+  websiteAssessMemo.textContent = "ホームページを読み取り、人的資本・組織OS・well-being・ESGの暫定値を作成しています。";
+
+  try {
+    const response = await fetch(`${AI_SCENARIO_API}/api/website-assess`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ url })
+    });
+    if (!response.ok) throw new Error(await response.text());
+    const result = await response.json();
+    applyWebsiteAssessment(result, url);
+  } catch (error) {
+    console.warn("Website assessment failed. Falling back to local estimate.", error);
+    applyWebsiteAssessment(localWebsiteAssessment(url), url);
+    websiteAssessBadge.textContent = "ローカル暫定";
+  } finally {
+    websiteAssessButton.disabled = false;
+    websiteAssessButton.textContent = "AIで暫定値を入力";
+  }
+}
 
 function renderForm() {
   form.innerHTML = categories.map((category) => {
@@ -2403,6 +2515,7 @@ addMemberButton.addEventListener("click", () => {
 
 document.querySelector("#sampleButton").addEventListener("click", sampleAnswers);
 document.querySelector("#resetButton").addEventListener("click", resetCurrentRound);
+websiteAssessButton.addEventListener("click", assessWebsiteFromUrl);
 submitScenarioAnswerButton.addEventListener("click", submitScenarioAnswer);
 scenarioSampleButton.addEventListener("click", scenarioSample);
 resetScenarioButton.addEventListener("click", resetScenario);
