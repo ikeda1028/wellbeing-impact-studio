@@ -386,6 +386,12 @@ const AI_IMAGE_API =
   localStorage.getItem("WELLBEING_AI_API_BASE") ||
   (shouldUsePublicApi ? PUBLIC_API_BASE : "");
 
+function apiBaseCandidates(primaryBase) {
+  const candidates = [primaryBase || ""];
+  if (shouldUsePublicApi) candidates.push(PUBLIC_API_BASE);
+  return [...new Set(candidates.map((base) => String(base || "").replace(/\/$/, "")))];
+}
+
 function scoreToScale(score) {
   const value = Number(score);
   if (!Number.isFinite(value)) return 3;
@@ -481,13 +487,26 @@ async function assessWebsiteFromUrl() {
   websiteAssessMemo.textContent = "AI解析が入力情報を読み取り、人的資本・組織OS・well-being・ESGの暫定値を作成しています。";
 
   try {
-    const response = await fetch(`${AI_SCENARIO_API}/api/website-assess`, {
-      method: "POST",
-      headers: { "content-type": "application/json" },
-      body: JSON.stringify({ url, companyName })
-    });
-    if (!response.ok) throw new Error(await response.text());
-    const result = await response.json();
+    let result = null;
+    let lastError = null;
+    for (const base of apiBaseCandidates(AI_SCENARIO_API)) {
+      try {
+        websiteAssessMemo.textContent = base
+          ? `AI解析APIに接続しています。接続先: ${base}`
+          : "AI解析APIに接続しています。";
+        const response = await fetch(`${base}/api/website-assess`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ url, companyName })
+        });
+        if (!response.ok) throw new Error(await response.text());
+        result = await response.json();
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (!result) throw lastError || new Error("AI API request failed");
     applyWebsiteAssessment(result, url || companyName);
   } catch (error) {
     console.warn("Website assessment failed. Falling back to local estimate.", error);
