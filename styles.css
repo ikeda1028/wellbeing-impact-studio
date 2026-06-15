@@ -819,6 +819,16 @@ canvas {
   margin-bottom: 16px;
 }
 
+.scenario-company-panel {
+  margin-bottom: 16px;
+}
+
+.scenario-company-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
 .recommendation-card.is-ai-generated {
   border-color: rgba(30, 125, 91, 0.28);
   background: linear-gradient(180deg, #ffffff 0%, #f7fbf8 100%);
@@ -1202,6 +1212,7 @@ canvas {
   .steps,
   .score-grid,
   .organization-grid,
+  .scenario-company-grid,
   .cover-metrics,
   .summary-grid,
   .recommendation-grid,

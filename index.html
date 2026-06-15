@@ -293,6 +293,18 @@
             <button class="primary-button" data-view-target="results" type="button">結果を見る</button>
           </div>
 
+          <section class="panel scenario-company-panel">
+            <div class="panel-header">
+              <h2>会社・URLからAIシナリオ生成</h2>
+              <span class="badge muted" id="scenarioCompanyBadge">未生成</span>
+            </div>
+            <p class="narrative" id="scenarioCompanyMemo">01の会社名・URL・AI解析結果から業界を特定し、競合他社や市場プレイヤーが登場する実践シナリオを生成します。</p>
+            <div class="controls-row">
+              <button class="primary-button" id="generateCompanyScenarioButton" type="button">AIで会社別シナリオ生成</button>
+            </div>
+            <div class="scenario-company-grid" id="scenarioCompanyGrid"></div>
+          </section>
+
           <div class="scenario-layout">
             <section class="panel">
               <div class="panel-header">

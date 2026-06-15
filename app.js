@@ -210,6 +210,7 @@ const state = {
   scenarioResponses: [],
   scenarioMessages: [],
   scenario: null,
+  scenarioPlan: null,
   websiteAssessment: null,
   aiRecommendations: null
 };
@@ -261,6 +262,10 @@ const scenarioScoreBadge = document.querySelector("#scenarioScoreBadge");
 const scenarioScoreGrid = document.querySelector("#scenarioScoreGrid");
 const scenarioContextList = document.querySelector("#scenarioContextList");
 const scenarioOutput = document.querySelector("#scenarioOutput");
+const generateCompanyScenarioButton = document.querySelector("#generateCompanyScenarioButton");
+const scenarioCompanyBadge = document.querySelector("#scenarioCompanyBadge");
+const scenarioCompanyMemo = document.querySelector("#scenarioCompanyMemo");
+const scenarioCompanyGrid = document.querySelector("#scenarioCompanyGrid");
 const generatedImageCanvas = document.querySelector("#generatedImageCanvas");
 const imagePromptText = document.querySelector("#imagePromptText");
 const generateImageButton = document.querySelector("#generateImageButton");
@@ -359,6 +364,10 @@ const scenarioScenes = [
     focus: "事業性・ESG説明力・インパクト測定"
   }
 ];
+
+function activeScenarioScenes() {
+  return state.scenarioPlan?.scenes?.length ? state.scenarioPlan.scenes : scenarioScenes;
+}
 
 const AI_SCENARIO_API =
   window.WELLBEING_AI_API_BASE ||
@@ -1323,8 +1332,132 @@ function startScenarioScenes() {
   buildScenario();
 }
 
+function inferScenarioPlanLocally() {
+  const sourceText = [
+    companyNameInput.value,
+    websiteUrlInput.value,
+    state.websiteAssessment?.companyName,
+    state.websiteAssessment?.summary,
+    state.websiteAssessment?.evidence?.join(" ")
+  ].filter(Boolean).join(" ");
+  const text = sourceText.toLowerCase();
+  const isEducation = /教育|学校|学習|academy|school|edu|探究|人材/.test(text);
+  const isCare = /医療|介護|福祉|health|care|高齢/.test(text);
+  const isManufacturing = /製造|工場|manufact|品質|物流|dx/.test(text);
+  const isTourism = /観光|ホテル|旅行|商店|地域商業|tour/.test(text);
+  const industry = isEducation ? "教育・探究学習" : isCare ? "地域医療・介護" : isManufacturing ? "製造業・現場DX" : isTourism ? "観光・地域商業" : "地域企業の人的資本・well-being事業";
+  const company = companyNameInput.value.trim() || state.websiteAssessment?.companyName || "対象組織";
+  const competitors = isEducation
+    ? ["大手教育プラットフォーム", "地域学習塾", "探究学習支援スタートアップ"]
+    : isCare
+      ? ["地域医療法人", "介護DX事業者", "大手ヘルスケア企業"]
+      : isManufacturing
+        ? ["同業中堅メーカー", "現場DXベンダー", "海外低コスト競合"]
+        : ["同業地域企業", "大手プラットフォーム", "DX新興企業"];
+  const marketPlayers = isEducation
+    ? ["学校管理職", "教員", "地元企業", "自治体教育担当"]
+    : isCare
+      ? ["患者家族", "介護職", "自治体福祉担当", "地域包括支援センター"]
+      : isManufacturing
+        ? ["現場リーダー", "熟練者", "協力会社", "品質管理部門"]
+        : ["顧客", "地域事業者", "自治体", "金融機関"];
+  return {
+    source: "ローカル会社別シナリオ",
+    companyName: company,
+    inferredIndustry: industry,
+    market: marketPlayers.slice(0, 3).join("、"),
+    location: state.websiteAssessment?.sourceLabel || "会社と地域市場",
+    challenge: "競合が先に動く中で、社内の合意形成と実行体制が追いついていない。",
+    desiredImpact: "人的資本、well-being、事業性を同時に高め、ESG価値として説明できる状態にする。",
+    competitors,
+    marketPlayers,
+    storySeed: `${company}は${industry}領域で、${competitors[0]}や${competitors[1]}の動きを受けながら、自社らしいwell-being事業を立ち上げようとしています。`,
+    scenes: [
+      {
+        title: "場面1: 競合が先行する中で問いを立てる",
+        prompt: `${competitors[0]}が新サービスを発表し、${marketPlayers[0]}から比較され始めました。社内では危機感と慎重論が割れています。あなたは最初の2週間で誰に何を聞き、どの問いに絞りますか。`,
+        focus: "探究度数・業界理解・競合比較"
+      },
+      {
+        title: "場面2: 社内外を巻き込み実証を設計する",
+        prompt: `${competitors[1]}も地域連携を強めています。一方、社内の現場は忙しく、${marketPlayers[1]}や${marketPlayers[2]}との調整も必要です。あなたはどの部署、現場メンバー、外部関係者を巻き込み、どんな小さな実証を設計しますか。`,
+        focus: "組織OS・プロジェクト型成熟度・well-being"
+      },
+      {
+        title: "場面3: 事業性とESG価値を説明する",
+        prompt: `実証後、取締役会では投資判断、競合優位、ESG説明が問われています。${competitors[2]}との差別化を示しながら、どのKPIを置き、どんなリスクを管理し、投資家や地域関係者にどう説明しますか。`,
+        focus: "事業性・ESG投資適格性・説明責任"
+      }
+    ]
+  };
+}
+
+function applyScenarioPlan(plan) {
+  state.scenarioPlan = plan;
+  state.scenarioContext = {
+    industry: plan.inferredIndustry || plan.industry || "",
+    location: plan.location || "",
+    market: plan.market || "",
+    challenge: plan.challenge || plan.storySeed || "",
+    desiredImpact: plan.desiredImpact || ""
+  };
+  state.scenarioMode = "scenes";
+  state.scenarioFieldIndex = scenarioFields.length;
+  state.scenarioSceneIndex = 0;
+  state.scenarioResponses = [];
+  state.scenarioMessages = [
+    {
+      role: "ai",
+      text: `${plan.companyName || "対象組織"}の会社別AIシナリオを生成しました。推定業界は「${plan.inferredIndustry || "未設定"}」です。競合や市場プレイヤーが登場する場面で判断してください。`,
+      meta: buildScenePrompt(0)
+    }
+  ];
+  scenarioCompanyBadge.textContent = plan.source || "AI会社別シナリオ";
+  scenarioCompanyMemo.textContent = plan.storySeed || "会社名・URLから業界と競合を推定して、実践シナリオを生成しました。";
+  buildScenario();
+  updateAll();
+}
+
+function buildScenarioGenerationContext() {
+  return {
+    companyName: companyNameInput.value.trim(),
+    url: websiteUrlInput.value.trim(),
+    websiteAssessment: state.websiteAssessment,
+    scores: allScores(),
+    esgScores: allEsgScores(),
+    organizationType: organizationType(allScores()),
+    weakestCategories: weakestCategories(allScores(), 3).map((category) => category.label),
+    existingScenarioContext: state.scenarioContext
+  };
+}
+
+async function generateCompanyScenario() {
+  generateCompanyScenarioButton.disabled = true;
+  generateCompanyScenarioButton.textContent = "AIシナリオ生成中";
+  scenarioCompanyBadge.textContent = "AI生成中";
+  scenarioCompanyMemo.textContent = "AIが会社名・URL・AI解析結果から業界を特定し、競合他社が登場する場面を作成しています。";
+
+  try {
+    const response = await fetch(`${AI_SCENARIO_API}/api/scenario-generate`, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(buildScenarioGenerationContext())
+    });
+    if (!response.ok) throw new Error(await response.text());
+    const plan = await response.json();
+    applyScenarioPlan(plan);
+  } catch (error) {
+    console.warn("Company scenario generation failed. Falling back to local scenario.", error);
+    applyScenarioPlan(inferScenarioPlanLocally());
+    scenarioCompanyBadge.textContent = "ローカル会社別シナリオ";
+  } finally {
+    generateCompanyScenarioButton.disabled = false;
+    generateCompanyScenarioButton.textContent = "AIで会社別シナリオ生成";
+  }
+}
+
 function buildScenePrompt(index) {
-  const scene = scenarioScenes[index];
+  const scene = activeScenarioScenes()[index];
   if (!scene) return "すべての場面が完了しました。結果画面で診断との差分を確認してください。";
   const context = state.scenarioContext;
   return `${scene.title}\n${scene.prompt}\n\n文脈: ${context.industry} / ${context.location} / ${context.market}\n評価焦点: ${scene.focus}`;
@@ -1400,6 +1533,7 @@ function aggregateScenarioScores() {
 }
 
 function buildScenario() {
+  const plan = state.scenarioPlan;
   const context = {
     industry: state.scenarioContext.industry || "未設定の業界",
     location: state.scenarioContext.location || "未設定の場所",
@@ -1476,8 +1610,8 @@ function buildScenario() {
       executionRisk,
       impactIndex
     },
-    title: `${context.location}における${context.industry}のwell-being事業化シナリオ`,
-    story: `${context.market}が抱える未充足の課題を起点に、${type.label}への移行を進めながら、現場発の小さなプロジェクトを立ち上げます。${strong.map((item) => item.short).join("と")}を強みに、${weak.map((item) => item.short).join("と")}を補強します。あなたの場面判断では、探究${scenarioJudgement.inquiry}、組織調整${scenarioJudgement.org}、well-being${scenarioJudgement.wellbeing}、事業性${scenarioJudgement.business}、ESG説明力${scenarioJudgement.esg}として測定されています。`,
+    title: plan ? `${plan.companyName || context.location}の${context.industry} 競合対応シナリオ` : `${context.location}における${context.industry}のwell-being事業化シナリオ`,
+    story: plan ? `${plan.storySeed} ${context.market}と${(plan.competitors || []).slice(0, 2).join("、")}の動きを見ながら、${type.label}への移行を進めます。${strong.map((item) => item.short).join("と")}を強みに、${weak.map((item) => item.short).join("と")}を補強します。あなたの場面判断では、探究${scenarioJudgement.inquiry}、組織調整${scenarioJudgement.org}、well-being${scenarioJudgement.wellbeing}、事業性${scenarioJudgement.business}、ESG説明力${scenarioJudgement.esg}として測定されています。` : `${context.market}が抱える未充足の課題を起点に、${type.label}への移行を進めながら、現場発の小さなプロジェクトを立ち上げます。${strong.map((item) => item.short).join("と")}を強みに、${weak.map((item) => item.short).join("と")}を補強します。あなたの場面判断では、探究${scenarioJudgement.inquiry}、組織調整${scenarioJudgement.org}、well-being${scenarioJudgement.wellbeing}、事業性${scenarioJudgement.business}、ESG説明力${scenarioJudgement.esg}として測定されています。`,
     hypothesis: [
       `${context.market}に対して、困りごとの可視化と支援導線を一体化したサービスを検証する`,
       `組織内では、管理職承認に依存しすぎない90日プロジェクトとして運用する`,
@@ -1487,9 +1621,10 @@ function buildScenario() {
       "現場メンバー",
       "管理職・意思決定者",
       context.market,
+      ...(plan?.competitors?.slice(0, 2) || []),
       signals.regional ? "自治体・地域団体" : "外部パートナー",
       "顧客・受益者"
-    ],
+    ].slice(0, 7),
     risks: [
       executionRisk >= 60 ? "意思決定が遅く、実証実験が始まる前に momentum を失う" : "初期実証の範囲が広がりすぎる",
       scores.orgWellbeing < 60 ? "挑戦が一部メンバーの負荷として偏り、well-beingを下げる" : "成果が見えにくい活動が評価されにくい",
@@ -1515,7 +1650,7 @@ async function evaluateScenarioWithAi(answer, sceneIndex, fallbackScore) {
       headers: { "content-type": "application/json" },
       body: JSON.stringify({
         context: state.scenarioContext,
-        scene: scenarioScenes[sceneIndex],
+        scene: activeScenarioScenes()[sceneIndex],
         answer,
         selfScores: allScores(),
         esgScores: allEsgScores()
@@ -1569,7 +1704,7 @@ async function submitScenarioAnswer() {
     }
   } else if (state.scenarioMode === "scenes") {
     const sceneIndex = state.scenarioSceneIndex;
-    const scene = scenarioScenes[sceneIndex];
+    const scene = activeScenarioScenes()[sceneIndex];
     const fallbackScore = scoreScenarioResponse(answer, sceneIndex);
     submitScenarioAnswerButton.disabled = true;
     submitScenarioAnswerButton.textContent = "AI測定中...";
@@ -1581,7 +1716,7 @@ async function submitScenarioAnswer() {
     state.scenarioSceneIndex += 1;
     buildScenario();
 
-    if (state.scenarioSceneIndex < scenarioScenes.length) {
+    if (state.scenarioSceneIndex < activeScenarioScenes().length) {
       state.scenarioMessages.push({
         role: "ai",
         text: evaluation.aiUsed ? "AIが回答を測定しました。次の場面に進みます。" : "回答をローカル評価で測定しました。次の場面に進みます。",
@@ -1610,6 +1745,7 @@ function selectScenarioOption(value) {
 }
 
 function resetScenario() {
+  state.scenarioPlan = null;
   state.scenarioMode = "collecting";
   state.scenarioFieldIndex = 0;
   state.scenarioSceneIndex = 0;
@@ -1623,6 +1759,9 @@ function resetScenario() {
   state.scenarioResponses = [];
   state.scenarioMessages = [];
   state.scenario = null;
+  scenarioCompanyBadge.textContent = "未生成";
+  scenarioCompanyMemo.textContent = "01の会社名・URL・AI解析結果から業界を特定し、競合他社や市場プレイヤーが登場する実践シナリオを生成します。";
+  scenarioCompanyGrid.innerHTML = "";
   scenarioAnswerInput.value = "";
   ensureScenarioStarted();
   updateAll();
@@ -2057,9 +2196,21 @@ async function generateResultDashboardImage() {
 
 function renderScenario() {
   ensureScenarioStarted();
+  const plan = state.scenarioPlan;
+  scenarioCompanyGrid.innerHTML = plan ? [
+    ["推定業界", plan.inferredIndustry || "--"],
+    ["対象組織", plan.companyName || companyNameInput.value.trim() || "--"],
+    ["競合他社", (plan.competitors || []).join(" / ") || "--"],
+    ["市場プレイヤー", (plan.marketPlayers || []).join(" / ") || "--"]
+  ].map(([label, value]) => `
+    <div class="context-chip">
+      <span>${label}</span>
+      <strong>${escapeHTML(value)}</strong>
+    </div>
+  `).join("") : "";
   scenarioStageBadge.textContent =
     state.scenarioMode === "collecting" ? "情報収集中" :
-      state.scenarioMode === "scenes" ? `場面 ${state.scenarioSceneIndex + 1} / ${scenarioScenes.length}` :
+    state.scenarioMode === "scenes" ? `場面 ${state.scenarioSceneIndex + 1} / ${activeScenarioScenes().length}` :
         "完了";
   const lastResponse = state.scenarioResponses[state.scenarioResponses.length - 1];
   aiStatusBadge.textContent = lastResponse?.aiUsed ? "AI API接続" : "ローカル評価";
@@ -2159,13 +2310,18 @@ function renderScenario() {
     },
     {
       title: "場面回答の測定",
-      body: `${state.scenarioResponses.length} / ${scenarioScenes.length}場面を回答済みです。`,
+      body: `${state.scenarioResponses.length} / ${activeScenarioScenes().length}場面を回答済みです。`,
       list: state.scenarioResponses.map((item) => `${item.scene}: 探究${item.score.inquiry} / 組織${item.score.org} / WB${item.score.wellbeing} / 事業${item.score.business} / ESG${item.score.esg}`).map(escapeHTML)
     },
     {
       title: "主要ステークホルダー",
       body: "プロジェクト開始時に巻き込む相手です。",
       list: scenario.stakeholders.map(escapeHTML)
+    },
+    {
+      title: "競合・市場プレイヤー",
+      body: plan ? `${escapeHTML(plan.inferredIndustry || "推定業界")}の市場文脈を反映しています。` : "会社別シナリオを生成すると、競合や市場プレイヤーがここに表示されます。",
+      list: plan ? [...(plan.competitors || []), ...(plan.marketPlayers || [])].slice(0, 6).map(escapeHTML) : ["AIで会社別シナリオ生成を実行"]
     },
     {
       title: "実行リスク",
@@ -2553,9 +2709,10 @@ function sampleEsgAnswers() {
 }
 
 function scenarioSample() {
+  state.scenarioPlan = null;
   state.scenarioMode = "complete";
   state.scenarioFieldIndex = scenarioFields.length;
-  state.scenarioSceneIndex = scenarioScenes.length;
+  state.scenarioSceneIndex = activeScenarioScenes().length;
   state.scenarioContext = {
     industry: "教育・探究学習",
     location: "地域高校と地元企業",
@@ -2569,7 +2726,7 @@ function scenarioSample() {
     "KPIは参加生徒数、地域企業の課題解決件数、継続率、満足度、well-being変化、収益とコストにします。リスクは教員負荷、個人情報、成果の偏りで、投資家にはESG、人的資本、地域インパクトとして開示します。"
   ];
   state.scenarioResponses = answers.map((answer, index) => ({
-    scene: scenarioScenes[index].title,
+    scene: activeScenarioScenes()[index].title,
     answer,
     score: scoreScenarioResponse(answer, index)
   }));
@@ -2676,6 +2833,7 @@ document.querySelector("#resetButton").addEventListener("click", resetCurrentRou
 websiteAssessButton.addEventListener("click", assessWebsiteFromUrl);
 generateAiRecommendationsButton.addEventListener("click", generateAiRecommendations);
 resetAiRecommendationsButton.addEventListener("click", resetAiRecommendations);
+generateCompanyScenarioButton.addEventListener("click", generateCompanyScenario);
 submitScenarioAnswerButton.addEventListener("click", submitScenarioAnswer);
 scenarioSampleButton.addEventListener("click", scenarioSample);
 resetScenarioButton.addEventListener("click", resetScenario);
