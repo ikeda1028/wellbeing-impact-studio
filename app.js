@@ -1338,6 +1338,77 @@ function startScenarioScenes() {
   buildScenario();
 }
 
+function normalizeCompanyNameForCompare(name = "") {
+  return String(name)
+    .toLowerCase()
+    .replace(/株式会社|有限会社|合同会社|持株会社|ホールディングス|グループ|inc\.?|corp\.?|corporation|co\.?,?\s*ltd\.?|ltd\.?/gi, "")
+    .replace(/[・･\s　\-ー–—_.,、。()（）［］\[\]「」'"]/g, "")
+    .trim();
+}
+
+function isSameCompanyName(candidate, companyName) {
+  const candidateKey = normalizeCompanyNameForCompare(candidate);
+  const companyKey = normalizeCompanyNameForCompare(companyName);
+  if (!candidateKey || !companyKey) return false;
+  if (candidateKey === companyKey) return true;
+  const shorter = candidateKey.length < companyKey.length ? candidateKey : companyKey;
+  const longer = candidateKey.length < companyKey.length ? companyKey : candidateKey;
+  return shorter.length >= 3 && longer.includes(shorter);
+}
+
+function scenarioCompetitorFallbacks(industry = "") {
+  if (industry.includes("自動車") || industry.includes("モビリティ")) return ["本田技研工業", "日産自動車", "SUBARU", "マツダ", "スズキ"];
+  if (industry.includes("電機") || industry.includes("エレクトロニクス")) return ["ソニーグループ", "パナソニックホールディングス", "日立製作所", "富士通", "NEC"];
+  if (industry.includes("IT") || industry.includes("インターネット")) return ["楽天グループ", "LINEヤフー", "Amazon", "Google", "メルカリ"];
+  if (industry.includes("金融") || industry.includes("保険")) return ["三井住友フィナンシャルグループ", "みずほフィナンシャルグループ", "野村ホールディングス", "東京海上ホールディングス", "大和証券グループ"];
+  if (industry.includes("不動産") || industry.includes("都市")) return ["三菱地所", "三井不動産", "住友不動産", "東急不動産", "野村不動産"];
+  if (industry.includes("小売") || industry.includes("流通")) return ["セブン&アイ・ホールディングス", "イオン", "ローソン", "ファミリーマート", "ファーストリテイリング"];
+  if (industry.includes("食品") || industry.includes("飲料")) return ["サントリーホールディングス", "キリンホールディングス", "アサヒグループホールディングス", "味の素", "日清食品ホールディングス"];
+  if (industry.includes("医療") || industry.includes("ヘルスケア")) return ["第一三共", "中外製薬", "エムスリー", "メドレー", "武田薬品工業"];
+  if (industry.includes("教育") || industry.includes("探究")) return ["ベネッセコーポレーション", "リクルート（スタディサプリ）", "Classi", "atama plus", "Z会"];
+  if (industry.includes("観光") || industry.includes("宿泊")) return ["JTB", "HIS", "楽天トラベル", "リクルート（じゃらん）", "Klook"];
+  return ["同業大手候補", "隣接プラットフォーム候補", "地域同業候補", "代替サービス候補", "新興企業候補"];
+}
+
+function sanitizeScenarioCompetitors(competitors = [], companyName = "", industry = "") {
+  const seen = new Set();
+  const filtered = [];
+  [...competitors, ...scenarioCompetitorFallbacks(industry)].forEach((name) => {
+    const competitor = String(name || "").trim();
+    const key = normalizeCompanyNameForCompare(competitor);
+    if (!competitor || seen.has(key) || isSameCompanyName(competitor, companyName)) return;
+    seen.add(key);
+    filtered.push(competitor);
+  });
+  return filtered.slice(0, Math.max(3, Math.min(5, filtered.length)));
+}
+
+function sanitizeScenarioPlan(plan) {
+  const companyName = plan.companyName || companyNameInput.value.trim() || state.websiteAssessment?.companyName || "";
+  const inferredIndustry = plan.inferredIndustry || plan.industry || "";
+  const competitors = sanitizeScenarioCompetitors(plan.competitors || [], companyName, inferredIndustry);
+  const replacement = competitors[0] || "主要競合候補";
+  const scenes = (plan.scenes || []).map((scene) => {
+    let prompt = scene.prompt || "";
+    if (companyName) {
+      prompt = prompt
+        .replaceAll(`競合候補の${companyName}`, `競合候補の${replacement}`)
+        .replaceAll(`比較対象の${companyName}`, `比較対象の${replacement}`)
+        .replaceAll(`競合の${companyName}`, `競合の${replacement}`);
+    }
+    return { ...scene, prompt };
+  });
+  return {
+    ...plan,
+    competitors,
+    scenes,
+    industryAnalysis: {
+      ...(plan.industryAnalysis || {}),
+      competitorBasis: `${plan.industryAnalysis?.competitorBasis || "業界における代表的な競合候補です。"} 対象会社と同一または同一グループと見なされる社名は除外しています。`
+    }
+  };
+}
+
 function inferScenarioPlanLocally() {
   const selectedIndustry = scenarioIndustryHint?.value || "";
   const selectedTheme = scenarioThemeHint?.value || "";
@@ -1432,7 +1503,7 @@ function inferScenarioPlanLocally() {
     businessModel: "入力情報が不足しているため、事業モデルは未確定です"
   };
   const industry = profile.industry;
-  const competitors = profile.competitors;
+  const competitors = sanitizeScenarioCompetitors(profile.competitors, company, industry);
   const marketPlayers = profile.marketPlayers;
   return {
     source: "ローカル会社別シナリオ",
@@ -1487,6 +1558,7 @@ function inferScenarioPlanLocally() {
 }
 
 function applyScenarioPlan(plan) {
+  plan = sanitizeScenarioPlan(plan);
   const analysis = plan.industryAnalysis || {};
   state.scenarioPlan = plan;
   state.scenarioContext = {
