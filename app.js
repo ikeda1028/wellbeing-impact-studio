@@ -376,7 +376,8 @@ function activeScenarioScenes() {
 const PUBLIC_API_BASE = "https://wellbeing-impact-studio-git-main-ikeda1028s-projects.vercel.app";
 const shouldUsePublicApi =
   location.protocol === "file:" ||
-  ["localhost", "127.0.0.1"].includes(location.hostname);
+  ["localhost", "127.0.0.1"].includes(location.hostname) ||
+  location.hostname.endsWith(".github.io");
 const AI_SCENARIO_API =
   window.WELLBEING_AI_API_BASE ||
   localStorage.getItem("WELLBEING_AI_API_BASE") ||
