@@ -245,6 +245,8 @@ const generateAiRecommendationsButton = document.querySelector("#generateAiRecom
 const resetAiRecommendationsButton = document.querySelector("#resetAiRecommendationsButton");
 const aiRecommendationBadge = document.querySelector("#aiRecommendationBadge");
 const aiRecommendationMemo = document.querySelector("#aiRecommendationMemo");
+const downloadResultsReportButton = document.querySelector("#downloadResultsReportButton");
+const downloadRecommendationsReportButton = document.querySelector("#downloadRecommendationsReportButton");
 const radarCanvas = document.querySelector("#radarCanvas");
 const growthScore = document.querySelector("#growthScore");
 const growthBadge = document.querySelector("#growthBadge");
@@ -2714,15 +2716,7 @@ function renderRecommendationCards(cards, className = "") {
   `).join("");
 }
 
-function renderRecommendations() {
-  if (state.aiRecommendations?.cards?.length) {
-    aiRecommendationBadge.textContent = state.aiRecommendations.source || "AI組織別提案";
-    aiRecommendationMemo.textContent = state.aiRecommendations.summary || "AIがこの組織に合わせた提案カードを生成しました。";
-    renderRecommendationCards(state.aiRecommendations.cards, "is-ai-generated");
-    return;
-  }
-
-  aiRecommendationBadge.textContent = "標準提案";
+function standardRecommendationCards() {
   const scores = allScores();
   const weak = weakestCategories(scores, 3);
   const type = organizationType(scores);
@@ -2733,7 +2727,7 @@ function renderRecommendations() {
   const liftTarget = (value, lift = 12) => clamp((value || 0) + lift);
   const targetText = (label, current, target) => `${label}: ${current || "--"} -> ${target}`;
   const scenarioScores = scenario?.scores;
-  const cards = [
+  return [
     {
       title: "優先テーマ",
       body: `${weak.map((item) => item.label).join("、")}を90日間の改善テーマにします。総合スコアは${total}です。`,
@@ -2829,8 +2823,317 @@ function renderRecommendations() {
       ]
     }
   ];
+}
 
-  renderRecommendationCards(cards);
+function activeRecommendationCards() {
+  return state.aiRecommendations?.cards?.length ? state.aiRecommendations.cards : standardRecommendationCards();
+}
+
+function renderRecommendations() {
+  if (state.aiRecommendations?.cards?.length) {
+    aiRecommendationBadge.textContent = state.aiRecommendations.source || "AI組織別提案";
+    aiRecommendationMemo.textContent = state.aiRecommendations.summary || "AIがこの組織に合わせた提案カードを生成しました。";
+    renderRecommendationCards(state.aiRecommendations.cards, "is-ai-generated");
+    return;
+  }
+
+  aiRecommendationBadge.textContent = "標準提案";
+  renderRecommendationCards(standardRecommendationCards());
+}
+
+function reportSubjectName() {
+  return state.websiteAssessment?.companyName || companyNameInput.value.trim() || "対象組織";
+}
+
+function reportDateText() {
+  return new Intl.DateTimeFormat("ja-JP", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(new Date());
+}
+
+function reportMetric(label, value, note = "") {
+  return `
+    <article class="metric">
+      <span>${escapeHTML(label)}</span>
+      <strong>${escapeHTML(value)}</strong>
+      ${note ? `<small>${escapeHTML(note)}</small>` : ""}
+    </article>
+  `;
+}
+
+function reportScoreTable(scores) {
+  return `
+    <table>
+      <thead><tr><th>評価領域</th><th>スコア</th><th>取締役会での読み方</th></tr></thead>
+      <tbody>
+        ${categories.map((category) => `
+          <tr>
+            <td>${escapeHTML(category.label)}</td>
+            <td>${scores[category.id]}</td>
+            <td>${escapeHTML(category.description)}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+function reportEsgTable(esgScores) {
+  return `
+    <table>
+      <thead><tr><th>ESG評価領域</th><th>スコア</th><th>説明責任上の観点</th></tr></thead>
+      <tbody>
+        ${esgCategories.map((category) => `
+          <tr>
+            <td>${escapeHTML(category.label)}</td>
+            <td>${esgScores[category.id]}</td>
+            <td>${escapeHTML(category.description)}</td>
+          </tr>
+        `).join("")}
+      </tbody>
+    </table>
+  `;
+}
+
+function reportList(items) {
+  return `<ul>${items.filter(Boolean).map((item) => `<li>${escapeHTML(item)}</li>`).join("")}</ul>`;
+}
+
+function reportRecommendationCardsHtml(cards) {
+  return cards.map((card) => `
+    <article class="proposal">
+      <h3>${escapeHTML(card.title)}</h3>
+      <p>${escapeHTML(card.body)}</p>
+      <div class="target">数値目標: ${escapeHTML(card.target || "未設定")}</div>
+      ${reportList(card.list || [])}
+    </article>
+  `).join("");
+}
+
+function boardReportShell(title, subtitle, bodyHtml) {
+  return `<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8">
+  <title>${escapeHTML(title)}</title>
+  <style>
+    @page { size: A4; margin: 14mm; }
+    * { box-sizing: border-box; }
+    body { margin: 0; color: #17211d; font-family: "Hiragino Sans", "Yu Gothic", "Meiryo", Arial, sans-serif; line-height: 1.65; background: #fff; }
+    .report { max-width: 1040px; margin: 0 auto; padding: 24px; }
+    header { border-bottom: 3px solid #1e7d5b; padding-bottom: 18px; margin-bottom: 22px; }
+    .eyebrow { color: #1e7d5b; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
+    h1 { margin: 6px 0 8px; font-size: 28px; line-height: 1.25; }
+    h2 { margin: 26px 0 10px; font-size: 18px; border-left: 5px solid #1e7d5b; padding-left: 10px; break-after: avoid; }
+    h3 { margin: 0 0 6px; font-size: 15px; }
+    p { margin: 0 0 10px; }
+    .meta { color: #58645f; display: flex; gap: 18px; flex-wrap: wrap; font-size: 12px; }
+    .summary { border: 1px solid #d9e1dc; background: #f7faf8; padding: 14px; border-radius: 8px; }
+    .metrics { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin: 14px 0; }
+    .metric { border: 1px solid #d9e1dc; border-radius: 8px; padding: 10px; min-height: 86px; }
+    .metric span { display: block; color: #66736e; font-size: 11px; }
+    .metric strong { display: block; margin-top: 4px; font-size: 24px; }
+    .metric small { display: block; color: #66736e; font-size: 10px; line-height: 1.45; }
+    table { width: 100%; border-collapse: collapse; margin: 10px 0 16px; font-size: 12px; }
+    th, td { border: 1px solid #d9e1dc; padding: 8px; vertical-align: top; }
+    th { background: #edf5f1; text-align: left; }
+    ul { margin: 8px 0 0; padding-left: 18px; }
+    li { margin: 3px 0; }
+    .grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+    .proposal, .note { border: 1px solid #d9e1dc; border-radius: 8px; padding: 12px; break-inside: avoid; }
+    .proposal p { color: #3f4b46; }
+    .target { margin: 8px 0; padding: 8px; background: #eef6f2; border-radius: 6px; font-weight: 700; color: #1e7d5b; font-size: 12px; }
+    .page-break { break-before: page; }
+    footer { margin-top: 24px; padding-top: 12px; border-top: 1px solid #d9e1dc; color: #66736e; font-size: 10px; }
+    @media print {
+      .report { padding: 0; }
+      .no-print { display: none; }
+      a { color: inherit; text-decoration: none; }
+    }
+  </style>
+</head>
+<body>
+  <main class="report">
+    <header>
+      <div class="eyebrow">Board Report</div>
+      <h1>${escapeHTML(title)}</h1>
+      <p>${escapeHTML(subtitle)}</p>
+      <div class="meta">
+        <span>対象: ${escapeHTML(reportSubjectName())}</span>
+        <span>作成日: ${escapeHTML(reportDateText())}</span>
+        <span>モード: ${state.assessmentMode === "organization" ? "組織モード" : "個人モード"}</span>
+      </div>
+    </header>
+    ${bodyHtml}
+    <footer>
+      本レポートはAI解析、自己診断、組織回答、AIシナリオの結果を統合した取締役会向けドラフトです。投資判断、開示、対外説明に用いる場合は、根拠資料、監査可能なデータ、法務・IR確認を経て確定してください。
+    </footer>
+  </main>
+  <script>
+    window.addEventListener("load", () => {
+      setTimeout(() => window.print(), 300);
+    });
+  </script>
+</body>
+</html>`;
+}
+
+function buildResultsBoardReportHtml() {
+  const scores = allScores();
+  const esgScores = allEsgScores();
+  const total = weightedScore(scores);
+  const esgScore = esgCompositeScore();
+  const esgStatus = esgGrade(esgScore);
+  const type = organizationType(scores);
+  const strong = strongestCategories(scores, 3);
+  const weak = weakestCategories(scores, 3);
+  const stats = state.assessmentMode === "organization" ? organizationStats() : null;
+  const scenario = state.scenario;
+  const body = `
+    <section class="summary">
+      <h2>エグゼクティブサマリー</h2>
+      <p>${escapeHTML(reportSubjectName())}の人的資本価値は${total}点です。組織タイプは「${escapeHTML(type.label)}」、ESG Readinessは${esgScore}点で「${escapeHTML(esgStatus.label)}」です。強みは${strong.map((item) => item.label).join("、")}、優先改善領域は${weak.map((item) => item.label).join("、")}です。</p>
+      <p>${escapeHTML(type.description)}</p>
+    </section>
+
+    <section>
+      <h2>重要指標</h2>
+      <div class="metrics">
+        ${reportMetric("総合人的資本価値", `${total}/100`, "8領域の加重平均")}
+        ${reportMetric("組織タイプ", type.label, "自律分散度とプロジェクト型成熟度")}
+        ${reportMetric("ESG Readiness", `${esgScore}/100`, esgStatus.body)}
+        ${reportMetric("AIシナリオ総合", scenario ? `${scenario.scores.impactIndex}/100` : "未実施", scenario ? "実践判断を反映" : "02完了後に反映")}
+      </div>
+      ${stats ? `<div class="metrics">
+        ${reportMetric("回答者数", `${stats.respondents.length}名`, `登録 ${stats.members.length}名`)}
+        ${reportMetric("組織平均", `${stats.average}/100`, "回答者の人的資本価値平均")}
+        ${reportMetric("ばらつき", `${stats.variance}`, "低いほど認識が揃っている")}
+        ${reportMetric("合意度", `${stats.consensus}/100`, `回答カバー率 ${stats.coverage}%`)}
+      </div>` : ""}
+    </section>
+
+    <section>
+      <h2>人的資本・組織OS・well-being評価</h2>
+      ${reportScoreTable(scores)}
+    </section>
+
+    <section>
+      <h2>ESG投資適格性評価</h2>
+      <p>${escapeHTML(esgStatus.body)}</p>
+      ${reportEsgTable(esgScores)}
+    </section>
+
+    <section>
+      <h2>AIシナリオによる実践判断</h2>
+      ${scenario ? `
+        <p>${escapeHTML(scenario.story)}</p>
+        <div class="metrics">
+          ${reportMetric("市場適合", `${scenario.scores.marketFit}/100`)}
+          ${reportMetric("組織実装力", `${scenario.scores.orgReadiness}/100`)}
+          ${reportMetric("well-beingインパクト", `${scenario.scores.wellbeingImpact}/100`)}
+          ${reportMetric("実行リスク", `${scenario.scores.executionRisk}/100`, "低減対象")}
+        </div>
+        <div class="grid">
+          <article class="note"><h3>主要リスク</h3>${reportList(scenario.risks)}</article>
+          <article class="note"><h3>次の実証</h3>${reportList(scenario.experiments)}</article>
+        </div>
+      ` : `<p>AIシナリオが未完了のため、実践判断、競合対応、ステークホルダー対応の評価は未反映です。</p>`}
+    </section>
+
+    <section>
+      <h2>取締役会での意思決定事項</h2>
+      ${reportList([
+        "人的資本価値を経営KPIとして継続測定するか",
+        `優先改善領域「${weak.map((item) => item.label).join("、")}」に90日間の実証予算と責任者を置くか`,
+        "ESG投資適格性に向けて、人的資本・well-being・地域インパクトの開示KPIを設定するか",
+        "改善タスクフォースとTLA組織開発プログラムを開始するか"
+      ])}
+    </section>
+  `;
+  return boardReportShell("人的資本価値・well-being統合診断レポート", "取締役会提出用の診断結果、ESG適格性、組織OS、AIシナリオ評価の統合報告です。", body);
+}
+
+function buildRecommendationsBoardReportHtml() {
+  const scores = allScores();
+  const total = weightedScore(scores);
+  const esgScore = esgCompositeScore();
+  const esgStatus = esgGrade(esgScore);
+  const type = organizationType(scores);
+  const cards = activeRecommendationCards();
+  const weak = weakestCategories(scores, 3);
+  const stats = state.assessmentMode === "organization" ? organizationStats() : null;
+  const source = state.aiRecommendations?.source || "標準提案";
+  const body = `
+    <section class="summary">
+      <h2>提案方針</h2>
+      <p>${escapeHTML(reportSubjectName())}は、総合人的資本価値${total}点、組織タイプ「${escapeHTML(type.label)}」、ESG Readiness ${esgScore}点「${escapeHTML(esgStatus.label)}」です。本提案は、${weak.map((item) => item.label).join("、")}を重点改善領域とし、90日で事業性とwell-beingを同時に高める実装計画です。</p>
+      <p>提案生成方式: ${escapeHTML(source)}</p>
+    </section>
+
+    <section>
+      <h2>経営判断に必要なKPI</h2>
+      <div class="metrics">
+        ${reportMetric("人的資本価値", `${total}/100`, "90日後に+10点以上を目標")}
+        ${reportMetric("自律分散", `${scores.autonomy}/100`)}
+        ${reportMetric("プロジェクト型成熟度", `${scores.project}/100`)}
+        ${reportMetric("ESG Readiness", `${esgScore}/100`, esgStatus.label)}
+      </div>
+      ${stats ? `<div class="metrics">
+        ${reportMetric("合意度", `${stats.consensus}/100`, "組織内認識の揃い方")}
+        ${reportMetric("ばらつき", `${stats.variance}`, "部署・メンバー差")}
+        ${reportMetric("カバー率", `${stats.coverage}%`, "回答網羅性")}
+        ${reportMetric("回答者", `${stats.respondents.length}名`, "組織評価の母数")}
+      </div>` : ""}
+    </section>
+
+    <section>
+      <h2>取締役会提出用 提案カード</h2>
+      <div class="grid">${reportRecommendationCardsHtml(cards)}</div>
+    </section>
+
+    <section class="page-break">
+      <h2>90日実行ロードマップ</h2>
+      <table>
+        <thead><tr><th>期間</th><th>実行内容</th><th>責任主体</th><th>成果物</th></tr></thead>
+        <tbody>
+          <tr><td>0-30日</td><td>業界比較、当社の強み確定、改善テーマ選定</td><td>取締役スポンサー、改善タスクフォース</td><td>重点テーマ、KPI、リスク台帳</td></tr>
+          <tr><td>31-60日</td><td>TLA受講、AIリサーチ、実証プロジェクト設計</td><td>次世代リーダー、各部署、現場メンバー</td><td>実証計画、関係者マップ、測定設計</td></tr>
+          <tr><td>61-90日</td><td>小規模実証、効果測定、取締役会レビュー</td><td>タスクフォース、経営会議</td><td>Before/After、ESG開示ストーリー、次期投資判断</td></tr>
+        </tbody>
+      </table>
+    </section>
+
+    <section>
+      <h2>承認依頼事項</h2>
+      ${reportList([
+        "改善タスクフォースの設置と取締役スポンサーの任命",
+        "TLA組織開発プログラムの受講枠と実証予算の確保",
+        "人的資本価値、組織well-being、地域well-being、ESG Readinessを四半期KPIとして扱うこと",
+        "90日後の取締役会で再測定結果と投資判断を審議すること"
+      ])}
+    </section>
+  `;
+  return boardReportShell("ESG・組織開発・TLA実践提案レポート", "取締役会提出用の改善提案、数値目標、90日ロードマップ、承認事項です。", body);
+}
+
+function openPdfReport(kind) {
+  updateAll();
+  const html = kind === "recommendations" ? buildRecommendationsBoardReportHtml() : buildResultsBoardReportHtml();
+  const win = window.open("", "_blank");
+  if (!win) {
+    const blob = new Blob([html], { type: "text/html;charset=utf-8" });
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = kind === "recommendations" ? "board-proposal-report.html" : "board-results-report.html";
+    link.click();
+    URL.revokeObjectURL(link.href);
+    return;
+  }
+  win.document.open();
+  win.document.write(html);
+  win.document.close();
 }
 
 function renderGrowth() {
@@ -3059,6 +3362,8 @@ document.querySelector("#resetButton").addEventListener("click", resetCurrentRou
 websiteAssessButton.addEventListener("click", assessWebsiteFromUrl);
 generateAiRecommendationsButton.addEventListener("click", generateAiRecommendations);
 resetAiRecommendationsButton.addEventListener("click", resetAiRecommendations);
+downloadResultsReportButton.addEventListener("click", () => openPdfReport("results"));
+downloadRecommendationsReportButton.addEventListener("click", () => openPdfReport("recommendations"));
 generateCompanyScenarioButton.addEventListener("click", generateCompanyScenario);
 submitScenarioAnswerButton.addEventListener("click", submitScenarioAnswer);
 scenarioSampleButton.addEventListener("click", scenarioSample);

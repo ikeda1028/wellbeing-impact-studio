@@ -208,7 +208,10 @@
               <h1>統合結果ダッシュボード</h1>
               <p>01の自己診断と02のAIシナリオ結果を合わせて、人的資本、組織OS、well-being、ESG投資適格性を確認できます。</p>
             </div>
-            <button class="primary-button" data-view-target="recommendations" type="button">提案へ進む</button>
+            <div class="header-actions">
+              <button class="secondary-button" id="downloadResultsReportButton" type="button">結果PDF作成</button>
+              <button class="primary-button" data-view-target="recommendations" type="button">提案へ進む</button>
+            </div>
           </div>
 
           <section class="panel organization-panel" id="organizationPanel">
@@ -406,6 +409,7 @@
             <div class="header-actions">
               <button class="primary-button" id="generateAiRecommendationsButton" type="button">AIで組織別提案を生成</button>
               <button class="secondary-button" id="resetAiRecommendationsButton" type="button">標準提案に戻す</button>
+              <button class="secondary-button" id="downloadRecommendationsReportButton" type="button">提案PDF作成</button>
               <button class="primary-button" data-view-target="growth" type="button">成長比較へ</button>
             </div>
           </div>
