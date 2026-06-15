@@ -430,9 +430,9 @@ function applyWebsiteAssessment(result, fallbackUrl = "") {
 
   const evidence = (result.evidence || []).slice(0, 3).join(" / ");
   const cautions = (result.cautions || []).slice(0, 2).join(" / ");
-  websiteAssessBadge.textContent = `暫定入力 ${Math.round(result.confidence || 0)}%`;
+  websiteAssessBadge.textContent = `AI解析済み ${Math.round(result.confidence || 0)}%`;
   websiteAssessMemo.textContent = [
-    result.companyName ? `${result.companyName}を暫定診断しました。` : "ホームページから暫定診断しました。",
+    result.companyName ? `AI解析により、${result.companyName}を暫定診断しました。` : "AI解析により、公開情報から暫定診断しました。",
     result.summary || "",
     evidence ? `根拠: ${evidence}` : "",
     cautions ? `注意: ${cautions}` : "",
@@ -445,15 +445,15 @@ async function assessWebsiteFromUrl() {
   const companyName = companyNameInput.value.trim();
   const url = websiteUrlInput.value.trim();
   if (!url && !companyName) {
-    websiteAssessBadge.textContent = "未入力";
-    websiteAssessMemo.textContent = "会社名・団体名、またはホームページURLを入力してください。";
+    websiteAssessBadge.textContent = "AI解析 未入力";
+    websiteAssessMemo.textContent = "AI解析に使う会社名・団体名、またはホームページURLを入力してください。";
     return;
   }
 
   websiteAssessButton.disabled = true;
-  websiteAssessButton.textContent = "AI診断中";
-  websiteAssessBadge.textContent = "取得中";
-  websiteAssessMemo.textContent = "入力情報をもとに、人的資本・組織OS・well-being・ESGの暫定値を作成しています。";
+  websiteAssessButton.textContent = "AI解析中";
+  websiteAssessBadge.textContent = "AI解析中";
+  websiteAssessMemo.textContent = "AI解析が入力情報を読み取り、人的資本・組織OS・well-being・ESGの暫定値を作成しています。";
 
   try {
     const response = await fetch(`${AI_SCENARIO_API}/api/website-assess`, {
@@ -467,10 +467,10 @@ async function assessWebsiteFromUrl() {
   } catch (error) {
     console.warn("Website assessment failed. Falling back to local estimate.", error);
     applyWebsiteAssessment(localWebsiteAssessment(url, companyName), url || companyName);
-    websiteAssessBadge.textContent = "ローカル暫定";
+    websiteAssessBadge.textContent = "ローカルAI解析";
   } finally {
     websiteAssessButton.disabled = false;
-    websiteAssessButton.textContent = "AIで暫定値を入力";
+    websiteAssessButton.textContent = "AI解析で暫定値を入力";
   }
 }
 

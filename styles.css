@@ -330,6 +330,26 @@ textarea {
   margin-bottom: 18px;
 }
 
+.ai-analysis-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: -6px 0 14px;
+}
+
+.ai-analysis-tags span {
+  display: inline-flex;
+  align-items: center;
+  min-height: 28px;
+  border: 1px solid rgba(30, 125, 91, 0.18);
+  border-radius: 999px;
+  background: #f2f8f5;
+  color: var(--green);
+  font-size: 12px;
+  font-weight: 900;
+  padding: 0 10px;
+}
+
 .website-assessment-controls {
   display: grid;
   grid-template-columns: minmax(260px, 1fr) auto;
