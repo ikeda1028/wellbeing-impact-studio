@@ -298,9 +298,38 @@
               <h2>会社・URLからAIシナリオ生成</h2>
               <span class="badge muted" id="scenarioCompanyBadge">未生成</span>
             </div>
-            <p class="narrative" id="scenarioCompanyMemo">01の会社名・URL・AI解析結果から業界を特定し、競合他社や市場プレイヤーが登場する実践シナリオを生成します。</p>
+            <p class="narrative" id="scenarioCompanyMemo">01の会社名・URL・AI解析結果・業界ヒントから、競合他社や市場プレイヤーが登場する実践シナリオをAI生成します。</p>
+            <div class="scenario-generator-controls">
+              <label>
+                業界ヒント
+                <select id="scenarioIndustryHint">
+                  <option value="">AIに自動判定させる</option>
+                  <option value="自動車・モビリティ">自動車・モビリティ</option>
+                  <option value="電機・エレクトロニクス">電機・エレクトロニクス</option>
+                  <option value="IT・インターネットサービス">IT・インターネットサービス</option>
+                  <option value="金融・保険">金融・保険</option>
+                  <option value="不動産・都市開発">不動産・都市開発</option>
+                  <option value="小売・流通">小売・流通</option>
+                  <option value="食品・飲料">食品・飲料</option>
+                  <option value="医療・ヘルスケア">医療・ヘルスケア</option>
+                  <option value="教育・探究学習">教育・探究学習</option>
+                  <option value="観光・宿泊・地域商業">観光・宿泊・地域商業</option>
+                </select>
+              </label>
+              <label>
+                シナリオの重点
+                <select id="scenarioThemeHint">
+                  <option value="">AIに任せる</option>
+                  <option value="新規事業開発">新規事業開発</option>
+                  <option value="組織開発・自律分散">組織開発・自律分散</option>
+                  <option value="人的資本価値向上">人的資本価値向上</option>
+                  <option value="地域well-being">地域well-being</option>
+                  <option value="ESG投資適格性">ESG投資適格性</option>
+                </select>
+              </label>
+            </div>
             <div class="controls-row">
-              <button class="primary-button" id="generateCompanyScenarioButton" type="button">AIで会社別シナリオ生成</button>
+              <button class="primary-button" id="generateCompanyScenarioButton" type="button">業界別AIシナリオ生成</button>
             </div>
             <div class="scenario-company-grid" id="scenarioCompanyGrid"></div>
           </section>

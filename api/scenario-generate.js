@@ -35,6 +35,8 @@ ${JSON.stringify(context, null, 2)}
 要件:
 - 日本語で作成
 - 会社名やURLから推定できる業界を inferredIndustry に入れる
+- 入力データに industryHint がある場合は最優先の業界仮説として扱う。ただし会社名・URL・AI解析結果と明らかに矛盾する場合は、inferredIndustry はAIの判断を優先し、industryAnalysis.basis と assumptions に矛盾理由を書く
+- 入力データに scenarioThemeHint がある場合は、recommendedScenarioTheme と5場面の葛藤設計に反映する
 - industryAnalysis に、業界判断の根拠、確信度、顧客セグメント、事業モデル、競合推定の根拠、注意すべき仮定、推奨シナリオテーマを入れる
 - competitors には、可能な限り具体的な社名候補を3-5社入れる
 - 実名の確度が低い場合でも、代表的な競合候補として使える社名を挙げ、industryAnalysis.competitorBasis で「候補であり要確認」と明記する
@@ -45,6 +47,7 @@ ${JSON.stringify(context, null, 2)}
 - 各場面で受講者が判断を迫られる問いにする
 - 各sceneのpromptには、制約条件、利害対立、追加イベント、判断しない場合のリスクを含める
 - 場面は「初動調査」「社内対立」「競合対応」「実証中のトラブル」「投資・ESG説明」の流れにする
+- 各sceneは業界固有の商流、規制、顧客、現場課題、収益モデルが分かる内容にする。汎用的な組織開発シナリオだけにしない
 - 01診断の弱み、ESG、well-being、事業性を評価できるようにする
 - scenes は industryAnalysis.recommendedScenarioTheme に沿って設計する
 

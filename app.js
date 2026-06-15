@@ -266,6 +266,8 @@ const generateCompanyScenarioButton = document.querySelector("#generateCompanySc
 const scenarioCompanyBadge = document.querySelector("#scenarioCompanyBadge");
 const scenarioCompanyMemo = document.querySelector("#scenarioCompanyMemo");
 const scenarioCompanyGrid = document.querySelector("#scenarioCompanyGrid");
+const scenarioIndustryHint = document.querySelector("#scenarioIndustryHint");
+const scenarioThemeHint = document.querySelector("#scenarioThemeHint");
 const generatedImageCanvas = document.querySelector("#generatedImageCanvas");
 const imagePromptText = document.querySelector("#imagePromptText");
 const generateImageButton = document.querySelector("#generateImageButton");
@@ -369,16 +371,20 @@ function activeScenarioScenes() {
   return state.scenarioPlan?.scenes?.length ? state.scenarioPlan.scenes : scenarioScenes;
 }
 
+const PUBLIC_API_BASE = "https://wellbeing-impact-studio-git-main-ikeda1028s-projects.vercel.app";
+const shouldUsePublicApi =
+  location.protocol === "file:" ||
+  ["localhost", "127.0.0.1"].includes(location.hostname);
 const AI_SCENARIO_API =
   window.WELLBEING_AI_API_BASE ||
   localStorage.getItem("WELLBEING_AI_API_BASE") ||
-  "";
+  (shouldUsePublicApi ? PUBLIC_API_BASE : "");
 const AI_IMAGE_API =
   window.WELLBEING_AI_IMAGE_API_BASE ||
   window.WELLBEING_AI_API_BASE ||
   localStorage.getItem("WELLBEING_AI_IMAGE_API_BASE") ||
   localStorage.getItem("WELLBEING_AI_API_BASE") ||
-  "";
+  (shouldUsePublicApi ? PUBLIC_API_BASE : "");
 
 function scoreToScale(score) {
   const value = Number(score);
@@ -1333,7 +1339,11 @@ function startScenarioScenes() {
 }
 
 function inferScenarioPlanLocally() {
+  const selectedIndustry = scenarioIndustryHint?.value || "";
+  const selectedTheme = scenarioThemeHint?.value || "";
   const sourceText = [
+    selectedIndustry,
+    selectedTheme,
     companyNameInput.value,
     websiteUrlInput.value,
     state.websiteAssessment?.companyName,
@@ -1414,7 +1424,8 @@ function inferScenarioPlanLocally() {
       businessModel: "旅行商品、宿泊予約、地域体験、観光マーケティング"
     }
   ];
-  const profile = industryProfiles.find((item) => item.pattern.test(text)) || {
+  const profile = industryProfiles.find((item) => selectedIndustry && item.industry === selectedIndustry)
+    || industryProfiles.find((item) => item.pattern.test(text)) || {
     industry: "業界未確定（追加情報が必要）",
     competitors: ["同業大手候補", "地域同業候補", "隣接プラットフォーム候補"],
     marketPlayers: ["顧客", "取引先", "地域関係者", "金融機関"],
@@ -1429,12 +1440,14 @@ function inferScenarioPlanLocally() {
     inferredIndustry: industry,
     industryAnalysis: {
       confidence: industry.includes("未確定") ? 28 : 68,
-      basis: industry.includes("未確定") ? "会社名、URL、AI解析メモから業界を特定できませんでした。会社URLや事業説明を追加してください。" : "会社名、URL、AI解析メモに含まれる企業名・ドメイン・業界語から業界を推定しました。",
+      basis: selectedIndustry ? `業界ヒント「${selectedIndustry}」を優先してシナリオを設計しました。` : industry.includes("未確定") ? "会社名、URL、AI解析メモから業界を特定できませんでした。会社URLや事業説明を追加してください。" : "会社名、URL、AI解析メモに含まれる企業名・ドメイン・業界語から業界を推定しました。",
       businessModel: profile.businessModel,
       customerSegments: marketPlayers.slice(0, 3),
       competitorBasis: "会社名やURLから推定した業界における代表的な競合候補・比較対象です。直接競合かどうかは要確認です。",
       assumptions: ["会社名やURLの語句からの推定であり、正式な業界分類は手動確認が必要です。", "社名は競合候補・比較対象であり、直接競合として断定しません。"],
-      recommendedScenarioTheme: `${industry}で競合に先行される中、人的資本とwell-beingを強みにした差別化事業を設計する`
+      recommendedScenarioTheme: selectedTheme
+        ? `${industry}における${selectedTheme}を、人的資本とwell-beingを強みに設計する`
+        : `${industry}で競合に先行される中、人的資本とwell-beingを強みにした差別化事業を設計する`
     },
     market: marketPlayers.slice(0, 3).join("、"),
     location: state.websiteAssessment?.sourceLabel || "会社と地域市場",
@@ -1507,6 +1520,8 @@ function buildScenarioGenerationContext() {
   return {
     companyName: companyNameInput.value.trim(),
     url: websiteUrlInput.value.trim(),
+    industryHint: scenarioIndustryHint?.value || "",
+    scenarioThemeHint: scenarioThemeHint?.value || "",
     websiteAssessment: state.websiteAssessment,
     websiteEvidence: state.websiteAssessment?.evidence || [],
     websiteCautions: state.websiteAssessment?.cautions || [],
@@ -1530,7 +1545,7 @@ async function generateCompanyScenario() {
   generateCompanyScenarioButton.disabled = true;
   generateCompanyScenarioButton.textContent = "AIシナリオ生成中";
   scenarioCompanyBadge.textContent = "AI生成中";
-  scenarioCompanyMemo.textContent = "AIが会社名・URL・AI解析結果から業界を特定し、競合他社が登場する場面を作成しています。";
+  scenarioCompanyMemo.textContent = "AIが会社名・URL・AI解析結果・業界ヒントから業界文脈を整理し、競合他社が登場する場面を作成しています。";
 
   try {
     const response = await fetch(`${AI_SCENARIO_API}/api/scenario-generate`, {
@@ -1547,7 +1562,7 @@ async function generateCompanyScenario() {
     scenarioCompanyBadge.textContent = "ローカル会社別シナリオ";
   } finally {
     generateCompanyScenarioButton.disabled = false;
-    generateCompanyScenarioButton.textContent = "AIで会社別シナリオ生成";
+    generateCompanyScenarioButton.textContent = "業界別AIシナリオ生成";
   }
 }
 
@@ -2309,6 +2324,9 @@ function renderScenario() {
   const plan = state.scenarioPlan;
   const analysis = plan?.industryAnalysis || {};
   scenarioCompanyGrid.innerHTML = plan ? [
+    ["生成方式", plan.source || "--"],
+    ["業界ヒント", scenarioIndustryHint?.value || "AI自動判定"],
+    ["重点テーマ", scenarioThemeHint?.value || "AIに任せる"],
     ["推定業界", plan.inferredIndustry || "--"],
     ["分析確信度", analysis.confidence !== undefined ? `${analysis.confidence}%` : "--"],
     ["対象組織", plan.companyName || companyNameInput.value.trim() || "--"],
