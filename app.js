@@ -1341,36 +1341,96 @@ function inferScenarioPlanLocally() {
     state.websiteAssessment?.evidence?.join(" ")
   ].filter(Boolean).join(" ");
   const text = sourceText.toLowerCase();
-  const isEducation = /教育|学校|学習|academy|school|edu|探究|人材/.test(text);
-  const isCare = /医療|介護|福祉|health|care|高齢/.test(text);
-  const isManufacturing = /製造|工場|manufact|品質|物流|dx/.test(text);
-  const isTourism = /観光|ホテル|旅行|商店|地域商業|tour/.test(text);
-  const industry = isEducation ? "教育・探究学習" : isCare ? "地域医療・介護" : isManufacturing ? "製造業・現場DX" : isTourism ? "観光・地域商業" : "地域企業の人的資本・well-being事業";
   const company = companyNameInput.value.trim() || state.websiteAssessment?.companyName || "対象組織";
-  const competitors = isEducation
-    ? ["ベネッセコーポレーション", "リクルート（スタディサプリ）", "Classi", "atama plus"]
-    : isCare
-      ? ["エムスリー", "エス・エム・エス", "Ubie", "メドレー"]
-      : isManufacturing
-        ? ["キーエンス", "ミスミグループ本社", "MonotaRO", "i Smart Technologies"]
-        : isTourism
-          ? ["JTB", "楽天トラベル", "リクルート（じゃらん）", "Klook"]
-          : ["リクルート", "楽天グループ", "LINEヤフー", "地域同業の有力企業"];
-  const marketPlayers = isEducation
-    ? ["学校管理職", "教員", "地元企業", "自治体教育担当"]
-    : isCare
-      ? ["患者家族", "介護職", "自治体福祉担当", "地域包括支援センター"]
-      : isManufacturing
-        ? ["現場リーダー", "熟練者", "協力会社", "品質管理部門"]
-        : ["顧客", "地域事業者", "自治体", "金融機関"];
+  const industryProfiles = [
+    {
+      industry: "自動車・モビリティ",
+      pattern: /toyota|トヨタ|honda|ホンダ|nissan|日産|subaru|スバル|mazda|マツダ|suzuki|スズキ|自動車|モビリティ|ev|車両/,
+      competitors: ["トヨタ自動車", "本田技研工業", "日産自動車", "SUBARU", "マツダ"],
+      marketPlayers: ["販売店", "部品サプライヤー", "法人顧客", "自治体交通担当"],
+      businessModel: "車両販売、モビリティサービス、サプライチェーン連携、保守・金融サービス"
+    },
+    {
+      industry: "電機・エレクトロニクス",
+      pattern: /sony|ソニー|panasonic|パナソニック|hitachi|日立|toshiba|東芝|sharp|シャープ|nec|fujitsu|富士通|電機|半導体|電子|家電/,
+      competitors: ["ソニーグループ", "パナソニックホールディングス", "日立製作所", "富士通", "NEC"],
+      marketPlayers: ["法人顧客", "販売代理店", "開発パートナー", "グローバルサプライヤー"],
+      businessModel: "製品販売、BtoBソリューション、保守サービス、データ・AI活用"
+    },
+    {
+      industry: "IT・インターネットサービス",
+      pattern: /rakuten|楽天|yahoo|line|google|amazon|mercari|メルカリ|cyberagent|サイバーエージェント|it|saas|クラウド|アプリ|ec|プラットフォーム/,
+      competitors: ["楽天グループ", "LINEヤフー", "Amazon", "Google", "メルカリ"],
+      marketPlayers: ["利用者", "広告主", "加盟店", "開発パートナー"],
+      businessModel: "プラットフォーム、広告、課金、EC、データ活用サービス"
+    },
+    {
+      industry: "金融・保険",
+      pattern: /mitsubishiufj|三菱ufj|smbc|三井住友|mizuho|みずほ|nomura|野村|daiwa|大和証券|tokio marine|東京海上|金融|銀行|証券|保険|fintech/,
+      competitors: ["三菱UFJフィナンシャル・グループ", "三井住友フィナンシャルグループ", "みずほフィナンシャルグループ", "野村ホールディングス", "東京海上ホールディングス"],
+      marketPlayers: ["個人顧客", "法人顧客", "金融庁", "提携フィンテック"],
+      businessModel: "預貸・決済、資産運用、保険、法人金融、デジタル金融サービス"
+    },
+    {
+      industry: "不動産・都市開発",
+      pattern: /mitsui fudosan|三井不動産|mitsubishi estate|三菱地所|sumitomo realty|住友不動産|tokyu|東急不動産|nomura real estate|野村不動産|不動産|都市開発|マンション|オフィス|商業施設/,
+      competitors: ["三井不動産", "三菱地所", "住友不動産", "東急不動産", "野村不動産"],
+      marketPlayers: ["入居企業", "住民", "自治体", "テナント事業者"],
+      businessModel: "開発、賃貸、分譲、施設運営、都市サービス"
+    },
+    {
+      industry: "小売・流通",
+      pattern: /seven|セブン|aeon|イオン|lawson|ローソン|familymart|ファミリーマート|uniqlo|ユニクロ|小売|流通|スーパー|コンビニ|店舗/,
+      competitors: ["セブン&アイ・ホールディングス", "イオン", "ローソン", "ファミリーマート", "ファーストリテイリング"],
+      marketPlayers: ["店舗従業員", "消費者", "取引先", "物流パートナー"],
+      businessModel: "店舗販売、EC、プライベートブランド、物流・会員サービス"
+    },
+    {
+      industry: "食品・飲料",
+      pattern: /suntory|サントリー|kirin|キリン|asahi|アサヒ|ajinomoto|味の素|nissin|日清|食品|飲料|外食|レストラン|フード/,
+      competitors: ["サントリーホールディングス", "キリンホールディングス", "アサヒグループホールディングス", "味の素", "日清食品ホールディングス"],
+      marketPlayers: ["消費者", "小売店", "飲食店", "原材料サプライヤー"],
+      businessModel: "商品開発、製造、流通、ブランドマーケティング、外食・中食"
+    },
+    {
+      industry: "医療・ヘルスケア",
+      pattern: /takeda|武田薬品|daiichi sankyo|第一三共|chugai|中外製薬|m3|エムスリー|medley|メドレー|医療|介護|福祉|health|care|高齢|製薬|病院/,
+      competitors: ["武田薬品工業", "第一三共", "中外製薬", "エムスリー", "メドレー"],
+      marketPlayers: ["患者", "医療従事者", "介護職", "自治体福祉担当"],
+      businessModel: "医薬品、医療サービス、ヘルスケアDX、地域ケア連携"
+    },
+    {
+      industry: "教育・探究学習",
+      pattern: /benesse|ベネッセ|study sapuri|スタディサプリ|classi|atama|教育|学校|学習|academy|school|edu|探究|人材/,
+      competitors: ["ベネッセコーポレーション", "リクルート（スタディサプリ）", "Classi", "atama plus", "Z会"],
+      marketPlayers: ["学校管理職", "教員", "生徒", "自治体教育担当"],
+      businessModel: "教育プログラム、探究学習支援、学校・企業連携サービス"
+    },
+    {
+      industry: "観光・宿泊・地域商業",
+      pattern: /jtb|his|楽天トラベル|jalan|じゃらん|klook|観光|ホテル|旅行|宿泊|商店街|地域商業|tour/,
+      competitors: ["JTB", "HIS", "楽天トラベル", "リクルート（じゃらん）", "Klook"],
+      marketPlayers: ["旅行者", "宿泊事業者", "地域事業者", "自治体観光担当"],
+      businessModel: "旅行商品、宿泊予約、地域体験、観光マーケティング"
+    }
+  ];
+  const profile = industryProfiles.find((item) => item.pattern.test(text)) || {
+    industry: "業界未確定（追加情報が必要）",
+    competitors: ["同業大手候補", "地域同業候補", "隣接プラットフォーム候補"],
+    marketPlayers: ["顧客", "取引先", "地域関係者", "金融機関"],
+    businessModel: "入力情報が不足しているため、事業モデルは未確定です"
+  };
+  const industry = profile.industry;
+  const competitors = profile.competitors;
+  const marketPlayers = profile.marketPlayers;
   return {
     source: "ローカル会社別シナリオ",
     companyName: company,
     inferredIndustry: industry,
     industryAnalysis: {
-      confidence: sourceText ? 62 : 38,
-      basis: sourceText ? "会社名、URL、AI解析メモに含まれる語句から業界を推定しました。" : "入力情報が少ないため、汎用的な地域企業シナリオとして推定しました。",
-      businessModel: isEducation ? "教育プログラム、探究学習支援、学校・企業連携サービス" : isCare ? "地域医療・介護支援、ケア連携、ヘルスケアDX" : isManufacturing ? "製造・品質・現場改善、DX支援、協力会社連携" : "地域顧客向けサービス、DX活用、関係者連携型事業",
+      confidence: industry.includes("未確定") ? 28 : 68,
+      basis: industry.includes("未確定") ? "会社名、URL、AI解析メモから業界を特定できませんでした。会社URLや事業説明を追加してください。" : "会社名、URL、AI解析メモに含まれる企業名・ドメイン・業界語から業界を推定しました。",
+      businessModel: profile.businessModel,
       customerSegments: marketPlayers.slice(0, 3),
       competitorBasis: "会社名やURLから推定した業界における代表的な競合候補・比較対象です。直接競合かどうかは要確認です。",
       assumptions: ["会社名やURLの語句からの推定であり、正式な業界分類は手動確認が必要です。", "社名は競合候補・比較対象であり、直接競合として断定しません。"],
