@@ -2617,6 +2617,14 @@ function buildRecommendationContext() {
       experiments: state.scenario.experiments,
       risks: state.scenario.risks,
       stakeholders: state.scenario.stakeholders
+    } : null,
+    marketIntelligence: state.scenarioPlan ? {
+      inferredIndustry: state.scenarioPlan.inferredIndustry,
+      competitors: state.scenarioPlan.competitors,
+      marketPlayers: state.scenarioPlan.marketPlayers,
+      businessModel: state.scenarioPlan.industryAnalysis?.businessModel,
+      competitorBasis: state.scenarioPlan.industryAnalysis?.competitorBasis,
+      recommendedScenarioTheme: state.scenarioPlan.industryAnalysis?.recommendedScenarioTheme
     } : null
   };
 }
@@ -2703,11 +2711,88 @@ function resetAiRecommendations() {
   renderRecommendations();
 }
 
+function recommendationBoardSignals(card, index) {
+  const title = card.title || "";
+  const scores = allScores();
+  const esgScore = esgCompositeScore();
+  const stats = state.assessmentMode === "organization" ? organizationStats() : null;
+  const plan = state.scenarioPlan;
+  const competitors = (plan?.competitors || []).slice(0, 3).join("、") || "同業他社";
+  const industry = plan?.inferredIndustry || scenarioIndustryHint?.value || state.scenarioContext.industry || "対象業界";
+  const spread = stats?.categorySpread?.[0];
+
+  if (title.includes("ESG")) {
+    return {
+      intelligence: `${industry}では人的資本・非財務KPIの開示品質が投資家評価に直結します。競合候補の${competitors}と比較し、ESG Readiness ${esgScore}点の根拠を説明できる状態にする必要があります。`,
+      boardAction: "取締役会で人的資本、地域well-being、事業性を統合した開示KPIと監督責任者を承認する。"
+    };
+  }
+  if (title.includes("組織OS")) {
+    return {
+      intelligence: `自律分散${scores.autonomy}点、プロジェクト型${scores.project}点は、事業変化への応答速度を示す経営指標です。`,
+      boardAction: "権限移譲、情報共有、会議体、投資判断のルールを経営アジェンダとして再設計する。"
+    };
+  }
+  if (title.includes("タスクフォース")) {
+    return {
+      intelligence: stats ? `組織内のばらつきは${stats.variance}、合意度は${stats.consensus}点です。${spread ? `${spread.label}の認識差が最大で、` : ""}部署間の実行力差が投資リスクになります。` : "改善タスクフォースは、取締役の意思決定と現場実行を接続するための実装インフラです。",
+      boardAction: "取締役スポンサーを任命し、90日ごとにKPI、リスク、予算継続をレビューする。"
+    };
+  }
+  if (title.includes("TLA")) {
+    return {
+      intelligence: `探究度数${scores.inquiry}点、リーダーシップ${scores.leadership}点は、AI時代の新規事業創出力と組織学習力の先行指標です。`,
+      boardAction: "TLAを研修費ではなく、次世代リーダーと事業仮説を育てる人的資本投資として承認する。"
+    };
+  }
+  if (title.includes("AI") || title.includes("シミュレーション") || title.includes("文脈")) {
+    return {
+      intelligence: state.scenario ? `AIシナリオ総合指数${state.scenario.scores.impactIndex}点、実行リスク${state.scenario.scores.executionRisk}点です。競合・顧客・現場制約に対する判断力が実装成否を左右します。` : "AIシナリオ未実施のため、競合対応、顧客反応、社内対立への実践判断が未測定です。",
+      boardAction: "重要プロジェクトは開始前にAIシナリオで反論、競合対応、撤退基準を検証する運用にする。"
+    };
+  }
+  if (title.includes("プロジェクト")) {
+    return {
+      intelligence: `${industry}で競争優位を作るには、${competitors}との比較で勝つ領域と戦わない領域を明確にする必要があります。`,
+      boardAction: "新規実証ごとに、顧客価値、収益性、人的資本への効果、撤退基準を取締役会で確認する。"
+    };
+  }
+  if (title.includes("次回")) {
+    return {
+      intelligence: "人的資本価値は一度の診断ではなく、四半期ごとの変化量で経営改善の実効性を判断する指標です。",
+      boardAction: "Before/Afterの再測定を取締役会の定例報告に組み込み、未達領域の追加投資を判断する。"
+    };
+  }
+  return {
+    intelligence: `総合人的資本価値${weightedScore(scores)}点のうち、弱点領域の改善は事業機会、採用・定着、ESG説明力に波及します。`,
+    boardAction: `優先テーマを経営課題として扱い、${index + 1}番目の提案に責任役員、予算、90日KPIを設定する。`
+  };
+}
+
+function enrichRecommendationCards(cards) {
+  return cards.map((card, index) => {
+    const signals = recommendationBoardSignals(card, index);
+    return {
+      ...card,
+      intelligence: card.intelligence || signals.intelligence,
+      boardAction: card.boardAction || signals.boardAction
+    };
+  });
+}
+
 function renderRecommendationCards(cards, className = "") {
-  recommendationGrid.innerHTML = cards.map((card) => `
+  recommendationGrid.innerHTML = enrichRecommendationCards(cards).map((card) => `
     <article class="recommendation-card ${className}">
       <strong>${escapeHTML(card.title)}</strong>
       <p>${escapeHTML(card.body)}</p>
+      <div class="intelligence-box">
+        <span>インテリジェンス</span>
+        <b>${escapeHTML(card.intelligence)}</b>
+      </div>
+      <div class="board-action-box">
+        <span>取締役会で強化</span>
+        <b>${escapeHTML(card.boardAction)}</b>
+      </div>
       <div class="target-box">
         <span>数値目標</span>
         <b>${escapeHTML(card.target)}</b>
@@ -2903,10 +2988,12 @@ function reportList(items) {
 }
 
 function reportRecommendationCardsHtml(cards) {
-  return cards.map((card) => `
+  return enrichRecommendationCards(cards).map((card) => `
     <article class="proposal">
       <h3>${escapeHTML(card.title)}</h3>
       <p>${escapeHTML(card.body)}</p>
+      <div class="target">インテリジェンス: ${escapeHTML(card.intelligence)}</div>
+      <div class="target">取締役会で強化: ${escapeHTML(card.boardAction)}</div>
       <div class="target">数値目標: ${escapeHTML(card.target || "未設定")}</div>
       ${reportList(card.list || [])}
     </article>
