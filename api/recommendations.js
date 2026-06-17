@@ -40,6 +40,7 @@ ${JSON.stringify(context, null, 2)}
 - target には数値目標を必ず含める
 - list は3項目
 - intelligence には、取締役が見るべき外部環境、競合比較、投資家視点、リスク兆候、人的資本開示、規制・市場変化などの示唆を1文で入れる
+- 入力データに newsIntelligence がある場合は、人的資本、well-being、ESG、イノベーション関連ニュースの示唆を intelligence と boardAction に反映する
 - boardAction には、取締役会または経営会議で強化・承認・監督すべき具体事項を1文で入れる
 - 取締役、各部署、現場メンバー、次世代リーダーを必要に応じて含める
 - TLA組織開発プログラム、組織OSアクション、ESG投資適格性、改善タスクフォースの観点を少なくともどこかに含める

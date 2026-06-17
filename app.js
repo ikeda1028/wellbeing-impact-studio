@@ -212,7 +212,8 @@ const state = {
   scenario: null,
   scenarioPlan: null,
   websiteAssessment: null,
-  aiRecommendations: null
+  aiRecommendations: null,
+  newsIntelligence: null
 };
 
 const form = document.querySelector("#assessmentForm");
@@ -247,6 +248,16 @@ const aiRecommendationBadge = document.querySelector("#aiRecommendationBadge");
 const aiRecommendationMemo = document.querySelector("#aiRecommendationMemo");
 const downloadResultsReportButton = document.querySelector("#downloadResultsReportButton");
 const downloadRecommendationsReportButton = document.querySelector("#downloadRecommendationsReportButton");
+const crawlNewsButton = document.querySelector("#crawlNewsButton");
+const newsStatusBadge = document.querySelector("#newsStatusBadge");
+const newsCompanyInput = document.querySelector("#newsCompanyInput");
+const newsIndustryInput = document.querySelector("#newsIndustryInput");
+const newsPeriodSelect = document.querySelector("#newsPeriodSelect");
+const newsMemo = document.querySelector("#newsMemo");
+const newsFetchedAt = document.querySelector("#newsFetchedAt");
+const newsBoardSummary = document.querySelector("#newsBoardSummary");
+const newsTopicGrid = document.querySelector("#newsTopicGrid");
+const newsList = document.querySelector("#newsList");
 const radarCanvas = document.querySelector("#radarCanvas");
 const growthScore = document.querySelector("#growthScore");
 const growthBadge = document.querySelector("#growthBadge");
@@ -2625,6 +2636,16 @@ function buildRecommendationContext() {
       businessModel: state.scenarioPlan.industryAnalysis?.businessModel,
       competitorBasis: state.scenarioPlan.industryAnalysis?.competitorBasis,
       recommendedScenarioTheme: state.scenarioPlan.industryAnalysis?.recommendedScenarioTheme
+    } : null,
+    newsIntelligence: state.newsIntelligence ? {
+      fetchedAt: state.newsIntelligence.fetchedAt,
+      periodDays: state.newsIntelligence.periodDays,
+      boardSummary: state.newsIntelligence.boardSummary,
+      topicSignals: (state.newsIntelligence.topics || []).map((topic) => ({
+        label: topic.label,
+        boardSignal: topic.boardSignal,
+        topTitles: (topic.articles || []).slice(0, 3).map((article) => article.title)
+      }))
     } : null
   };
 }
@@ -3224,6 +3245,128 @@ function openPdfReport(kind) {
   win.document.close();
 }
 
+function defaultNewsCompany() {
+  return state.websiteAssessment?.companyName || companyNameInput.value.trim();
+}
+
+function defaultNewsIndustry() {
+  return state.scenarioPlan?.inferredIndustry || scenarioIndustryHint?.value || state.scenarioContext.industry || "";
+}
+
+function formatNewsDate(value) {
+  if (!value) return "日付不明";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "日付不明";
+  return new Intl.DateTimeFormat("ja-JP", {
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit"
+  }).format(date);
+}
+
+function renderNewsIntelligence() {
+  if (!newsCompanyInput.value && defaultNewsCompany()) newsCompanyInput.value = defaultNewsCompany();
+  if (!newsIndustryInput.value && defaultNewsIndustry()) newsIndustryInput.value = defaultNewsIndustry();
+
+  const data = state.newsIntelligence;
+  if (!data) {
+    newsStatusBadge.textContent = "未取得";
+    newsFetchedAt.textContent = "未取得";
+    newsBoardSummary.innerHTML = `
+      <article class="summary-item">
+        <strong>ニュース未取得</strong>
+        <p>企業名、業界、期間を指定してニュースを取得すると、取締役向けの外部環境・競合・リスク・事業機会が表示されます。</p>
+      </article>
+    `;
+    newsTopicGrid.innerHTML = "";
+    newsList.innerHTML = "";
+    return;
+  }
+
+  newsStatusBadge.textContent = `${data.articles?.length || 0}件取得`;
+  newsFetchedAt.textContent = formatNewsDate(data.fetchedAt);
+  newsMemo.textContent = `${data.source || "News RSS"}から直近${data.periodDays}日のニュースを取得しました。対象: ${data.companyName || "未指定"} / ${data.industry || "業界未指定"}`;
+  newsBoardSummary.innerHTML = `
+    <article class="summary-item featured-summary">
+      <strong>取締役向けサマリー</strong>
+      <p>${escapeHTML(data.boardSummary || "ニュースを取得しました。")}</p>
+    </article>
+  `;
+  newsTopicGrid.innerHTML = (data.topics || []).map((topic) => `
+    <article class="news-topic-card">
+      <div class="panel-header">
+        <h2>${escapeHTML(topic.label)}</h2>
+        <span class="badge muted">${topic.articles?.length || 0}件</span>
+      </div>
+      <p>${escapeHTML(topic.boardSignal || "")}</p>
+      <ul>
+        ${(topic.articles || []).slice(0, 4).map((article) => `
+          <li>
+            <a href="${escapeHTML(article.link)}" target="_blank" rel="noopener noreferrer">${escapeHTML(article.title)}</a>
+            <span>${escapeHTML(article.source || "News")} / ${formatNewsDate(article.publishedAt)} / 関連度${article.relevance}</span>
+          </li>
+        `).join("")}
+      </ul>
+    </article>
+  `).join("");
+  newsList.innerHTML = (data.articles || []).map((article) => `
+    <article class="news-item">
+      <div>
+        <span class="badge muted">${escapeHTML(article.topicLabel || "News")}</span>
+        <h3><a href="${escapeHTML(article.link)}" target="_blank" rel="noopener noreferrer">${escapeHTML(article.title)}</a></h3>
+        <p>${escapeHTML(article.summary || "")}</p>
+      </div>
+      <aside>
+        <strong>${escapeHTML(article.source || "News")}</strong>
+        <span>${formatNewsDate(article.publishedAt)}</span>
+        <b>関連度 ${article.relevance}</b>
+      </aside>
+    </article>
+  `).join("");
+}
+
+async function crawlNewsIntelligence() {
+  const companyName = newsCompanyInput.value.trim() || defaultNewsCompany();
+  const industry = newsIndustryInput.value.trim() || defaultNewsIndustry();
+  const periodDays = Number(newsPeriodSelect.value || 30);
+  newsCompanyInput.value = companyName || "";
+  newsIndustryInput.value = industry || "";
+  crawlNewsButton.disabled = true;
+  crawlNewsButton.textContent = "取得中";
+  newsStatusBadge.textContent = "取得中";
+  newsMemo.textContent = "ニュースRSSを取得し、4テーマ別に分類しています。";
+
+  try {
+    let result = null;
+    let lastError = null;
+    for (const base of apiBaseCandidates(AI_SCENARIO_API)) {
+      try {
+        const response = await fetch(`${base}/api/news-intelligence`, {
+          method: "POST",
+          headers: { "content-type": "application/json" },
+          body: JSON.stringify({ companyName, industry, periodDays })
+        });
+        if (!response.ok) throw new Error(await response.text());
+        result = await response.json();
+        break;
+      } catch (error) {
+        lastError = error;
+      }
+    }
+    if (!result) throw lastError || new Error("News API request failed");
+    state.newsIntelligence = result;
+    localStorage.setItem("WELLBEING_NEWS_INTELLIGENCE", JSON.stringify(result));
+  } catch (error) {
+    console.warn("News crawl failed.", error);
+    newsStatusBadge.textContent = "取得失敗";
+    newsMemo.textContent = "ニュース取得に失敗しました。しばらくして再実行するか、期間を広げてください。";
+  } finally {
+    crawlNewsButton.disabled = false;
+    crawlNewsButton.textContent = "ニュースを取得";
+    renderNewsIntelligence();
+  }
+}
+
 function renderGrowth() {
   const before = allScores("before");
   const after = allScores("after");
@@ -3278,6 +3421,7 @@ function updateAll() {
   renderScenario();
   renderEsg();
   renderRecommendations();
+  renderNewsIntelligence();
   renderGrowth();
 }
 
@@ -3452,6 +3596,7 @@ generateAiRecommendationsButton.addEventListener("click", generateAiRecommendati
 resetAiRecommendationsButton.addEventListener("click", resetAiRecommendations);
 downloadResultsReportButton.addEventListener("click", () => openPdfReport("results"));
 downloadRecommendationsReportButton.addEventListener("click", () => openPdfReport("recommendations"));
+crawlNewsButton.addEventListener("click", crawlNewsIntelligence);
 generateCompanyScenarioButton.addEventListener("click", generateCompanyScenario);
 submitScenarioAnswerButton.addEventListener("click", submitScenarioAnswer);
 scenarioSampleButton.addEventListener("click", scenarioSample);
@@ -3486,6 +3631,12 @@ window.addEventListener("touchend", stopCoverDrag);
 
 renderForm();
 renderEsgForm();
+try {
+  const savedNews = localStorage.getItem("WELLBEING_NEWS_INTELLIGENCE");
+  if (savedNews) state.newsIntelligence = JSON.parse(savedNews);
+} catch {
+  state.newsIntelligence = null;
+}
 ensureScenarioStarted();
 updateAll();
 animateCoverCanvas();

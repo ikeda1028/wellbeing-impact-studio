@@ -841,6 +841,112 @@ canvas {
   line-height: 1.5;
 }
 
+.news-controls {
+  display: grid;
+  grid-template-columns: 1.2fr 1fr 180px;
+  gap: 12px;
+}
+
+.news-board-summary {
+  display: grid;
+  gap: 12px;
+}
+
+.featured-summary {
+  background: #f7fbf8;
+  border-color: rgba(30, 125, 91, 0.2);
+}
+
+.news-topic-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 14px;
+  margin-bottom: 16px;
+}
+
+.news-topic-card {
+  padding: 16px;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+}
+
+.news-topic-card h2 {
+  margin: 0;
+  font-size: 18px;
+}
+
+.news-topic-card p {
+  margin: 0 0 12px;
+  color: var(--muted);
+  line-height: 1.7;
+}
+
+.news-topic-card ul,
+.news-list {
+  display: grid;
+  gap: 10px;
+}
+
+.news-topic-card ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.news-topic-card li {
+  display: grid;
+  gap: 4px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+}
+
+.news-topic-card a,
+.news-item a {
+  color: var(--blue);
+  text-decoration: none;
+}
+
+.news-topic-card span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.news-item {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 170px;
+  gap: 16px;
+  padding: 14px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+}
+
+.news-item h3 {
+  margin: 8px 0 6px;
+  font-size: 16px;
+  line-height: 1.45;
+}
+
+.news-item p {
+  margin: 0;
+  color: var(--muted);
+  line-height: 1.65;
+}
+
+.news-item aside {
+  display: grid;
+  align-content: start;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.news-item aside strong,
+.news-item aside b {
+  color: var(--ink);
+}
+
 .recommendation-card.is-ai-generated {
   border-color: rgba(30, 125, 91, 0.28);
   background: linear-gradient(180deg, #ffffff 0%, #f7fbf8 100%);
@@ -1266,12 +1372,15 @@ canvas {
   .scenario-score-grid,
   .esg-score-grid,
   .scenario-output,
+  .news-topic-grid,
   .context-form {
     grid-template-columns: 1fr;
   }
 
   .member-row,
-  .spread-row {
+  .spread-row,
+  .news-controls,
+  .news-item {
     grid-template-columns: 1fr;
   }
 

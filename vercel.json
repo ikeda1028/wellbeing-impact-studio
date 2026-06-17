@@ -1,1 +1,8 @@
-{}
+{
+  "crons": [
+    {
+      "path": "/api/news-intelligence?periodDays=30",
+      "schedule": "0 22 * * *"
+    }
+  ]
+}
