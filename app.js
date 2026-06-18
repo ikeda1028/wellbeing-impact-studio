@@ -250,6 +250,7 @@ const downloadResultsReportButton = document.querySelector("#downloadResultsRepo
 const downloadRecommendationsReportButton = document.querySelector("#downloadRecommendationsReportButton");
 const crawlNewsButton = document.querySelector("#crawlNewsButton");
 const newsStatusBadge = document.querySelector("#newsStatusBadge");
+const newsDbBadge = document.querySelector("#newsDbBadge");
 const newsCompanyInput = document.querySelector("#newsCompanyInput");
 const newsIndustryInput = document.querySelector("#newsIndustryInput");
 const newsPeriodSelect = document.querySelector("#newsPeriodSelect");
@@ -3271,6 +3272,7 @@ function renderNewsIntelligence() {
   const data = state.newsIntelligence;
   if (!data) {
     newsStatusBadge.textContent = "未取得";
+    newsDbBadge.textContent = "DB未確認";
     newsFetchedAt.textContent = "未取得";
     newsBoardSummary.innerHTML = `
       <article class="summary-item">
@@ -3284,6 +3286,15 @@ function renderNewsIntelligence() {
   }
 
   newsStatusBadge.textContent = `${data.articles?.length || 0}件取得`;
+  if (data.database?.saved) {
+    newsDbBadge.textContent = "DB保存済み";
+  } else if (data.database?.enabled === false) {
+    newsDbBadge.textContent = "DB未設定";
+  } else if (data.database?.saved === false) {
+    newsDbBadge.textContent = "DB保存失敗";
+  } else {
+    newsDbBadge.textContent = "DB未確認";
+  }
   newsFetchedAt.textContent = formatNewsDate(data.fetchedAt);
   newsMemo.textContent = `${data.source || "News RSS"}から直近${data.periodDays}日のニュースを取得しました。対象: ${data.companyName || "未指定"} / ${data.industry || "業界未指定"}`;
   newsBoardSummary.innerHTML = `

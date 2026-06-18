@@ -1,3 +1,5 @@
+import { saveNewsIntelligence } from "./_news-store.js";
+
 const GOOGLE_NEWS_RSS = "https://news.google.com/rss/search";
 const MAX_ITEMS_PER_QUERY = 8;
 
@@ -174,7 +176,7 @@ export default async function handler(request, response) {
     const allArticles = uniqueArticles(results.flatMap((topic) => topic.articles))
       .sort((a, b) => b.relevance - a.relevance || b.publishedTime - a.publishedTime)
       .slice(0, 20);
-    return sendJson(response, {
+    const payload = {
       source: "Google News RSS",
       fetchedAt: new Date().toISOString(),
       periodDays: context.periodDays,
@@ -186,7 +188,13 @@ export default async function handler(request, response) {
         `直近${context.periodDays}日で、人的資本・well-being・ESG・イノベーションのニュースを横断取得しました。`,
         allArticles.length ? `取締役会では、上位${Math.min(5, allArticles.length)}件を事業機会、開示リスク、組織能力投資の観点で確認してください。` : "該当ニュースが少ないため、対象企業名、業界、期間を広げて再取得してください。"
       ].join("")
-    });
+    };
+    try {
+      payload.database = await saveNewsIntelligence(payload);
+    } catch (dbError) {
+      payload.database = { enabled: true, saved: false, error: dbError.message };
+    }
+    return sendJson(response, payload);
   } catch (error) {
     return sendJson(response, { error: "News crawl failed", detail: error.message }, 502);
   }
