@@ -322,6 +322,127 @@ textarea {
   font-weight: 700;
 }
 
+.participant-panel {
+  margin-bottom: 18px;
+}
+
+.participant-panel .panel-header p,
+.participant-modal .panel-header p {
+  margin: 6px 0 0;
+  color: var(--muted);
+  line-height: 1.6;
+  font-size: 13px;
+}
+
+.participant-summary {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr)) auto;
+  gap: 10px;
+  align-items: stretch;
+}
+
+.participant-summary > div {
+  min-height: 66px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+}
+
+.participant-summary span,
+.participant-summary strong {
+  display: block;
+}
+
+.participant-summary span {
+  color: var(--muted);
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.participant-summary strong {
+  margin-top: 5px;
+  font-size: 15px;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 20;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  padding: 22px;
+  background: rgba(17, 29, 24, 0.48);
+}
+
+.modal-backdrop.is-visible {
+  display: flex;
+}
+
+.participant-modal {
+  width: min(760px, 100%);
+  max-height: calc(100vh - 44px);
+  overflow: auto;
+  padding: 22px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 24px 70px rgba(13, 30, 22, 0.28);
+}
+
+.participant-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.participant-form label {
+  display: grid;
+  gap: 7px;
+  color: var(--muted);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.phone-auth-card {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(220px, 1fr) minmax(320px, 1.2fr);
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--soft);
+}
+
+.phone-auth-card p {
+  margin: 8px 0 0;
+  color: var(--muted);
+  line-height: 1.55;
+  font-size: 13px;
+}
+
+.phone-auth-actions {
+  display: grid;
+  grid-template-columns: auto minmax(120px, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+}
+
+.phone-auth-actions input {
+  min-width: 100px;
+}
+
+.modal-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  margin-top: 16px;
+}
+
 .org-control {
   display: none !important;
 }
@@ -1332,6 +1453,7 @@ canvas {
   .esg-layout,
   .image-generator-layout,
   .growth-layout,
+  .participant-summary,
   .website-assessment-controls,
   .cover-panel {
     grid-template-columns: 1fr;
@@ -1374,6 +1496,15 @@ canvas {
   .scenario-output,
   .news-topic-grid,
   .context-form {
+    grid-template-columns: 1fr;
+  }
+
+  .participant-form {
+    grid-template-columns: 1fr;
+  }
+
+  .phone-auth-card,
+  .phone-auth-actions {
     grid-template-columns: 1fr;
   }
 

@@ -177,7 +177,59 @@ const totalQuestionCount =
   categories.reduce((sum, category) => sum + category.questions.length, 0) +
   esgCategories.reduce((sum, category) => sum + category.questions.length, 0);
 
+const PARTICIPANT_STORAGE_KEY = "WELLBEING_PARTICIPANT_PROFILE";
+
+function createParticipantKey() {
+  const existing = localStorage.getItem("WELLBEING_PARTICIPANT_KEY");
+  if (existing) return existing;
+  const random = window.crypto?.randomUUID ? window.crypto.randomUUID() : `participant_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+  localStorage.setItem("WELLBEING_PARTICIPANT_KEY", random);
+  return random;
+}
+
+function loadParticipantProfile() {
+  const participantKey = createParticipantKey();
+  try {
+    const saved = JSON.parse(localStorage.getItem(PARTICIPANT_STORAGE_KEY) || "{}");
+    return {
+      participantKey,
+      displayName: saved.displayName || "",
+      email: saved.email || "",
+      phone: saved.phone || "",
+      authUserId: saved.authUserId || "",
+      phoneVerified: Boolean(saved.phoneVerified),
+      participationMode: saved.participationMode || "individual",
+      companyName: saved.companyName || "",
+      teamName: saved.teamName || "",
+      role: saved.role || "",
+      websiteUrl: saved.websiteUrl || "",
+      industry: saved.industry || "",
+      configured: Boolean(saved.configured),
+      savedAt: saved.savedAt || ""
+    };
+  } catch {
+    return {
+      participantKey,
+      displayName: "",
+      email: "",
+      phone: "",
+      authUserId: "",
+      phoneVerified: false,
+      participationMode: "individual",
+      companyName: "",
+      teamName: "",
+      role: "",
+      websiteUrl: "",
+      industry: "",
+      configured: false,
+      savedAt: ""
+    };
+  }
+}
+
 const state = {
+  participant: loadParticipantProfile(),
+  participantSaveStatus: "未保存",
   assessmentMode: "individual",
   organization: {
     activeMemberId: "member_1",
@@ -216,6 +268,14 @@ const state = {
   newsIntelligence: null
 };
 
+const authState = {
+  client: null,
+  ready: false,
+  configured: false,
+  session: null,
+  lastPhone: ""
+};
+
 const form = document.querySelector("#assessmentForm");
 const assessmentModeSelect = document.querySelector("#assessmentModeSelect");
 const roundSelect = document.querySelector("#roundSelect");
@@ -229,6 +289,30 @@ const websiteUrlInput = document.querySelector("#websiteUrlInput");
 const websiteAssessButton = document.querySelector("#websiteAssessButton");
 const websiteAssessBadge = document.querySelector("#websiteAssessBadge");
 const websiteAssessMemo = document.querySelector("#websiteAssessMemo");
+const participantPanel = document.querySelector("#participantPanel");
+const participantSaveBadge = document.querySelector("#participantSaveBadge");
+const participantSummaryName = document.querySelector("#participantSummaryName");
+const participantSummaryMode = document.querySelector("#participantSummaryMode");
+const participantSummaryCompany = document.querySelector("#participantSummaryCompany");
+const editParticipantButton = document.querySelector("#editParticipantButton");
+const participantModal = document.querySelector("#participantModal");
+const participantModalBadge = document.querySelector("#participantModalBadge");
+const participantNameInput = document.querySelector("#participantNameInput");
+const participantEmailInput = document.querySelector("#participantEmailInput");
+const participantPhoneInput = document.querySelector("#participantPhoneInput");
+const phoneAuthBadge = document.querySelector("#phoneAuthBadge");
+const phoneAuthMemo = document.querySelector("#phoneAuthMemo");
+const sendPhoneOtpButton = document.querySelector("#sendPhoneOtpButton");
+const phoneOtpInput = document.querySelector("#phoneOtpInput");
+const verifyPhoneOtpButton = document.querySelector("#verifyPhoneOtpButton");
+const participantModeSelect = document.querySelector("#participantModeSelect");
+const participantCompanyInput = document.querySelector("#participantCompanyInput");
+const participantTeamInput = document.querySelector("#participantTeamInput");
+const participantRoleInput = document.querySelector("#participantRoleInput");
+const participantWebsiteInput = document.querySelector("#participantWebsiteInput");
+const participantSaveButton = document.querySelector("#participantSaveButton");
+const participantSkipButton = document.querySelector("#participantSkipButton");
+const participantSaveMemo = document.querySelector("#participantSaveMemo");
 const coverCanvas = document.querySelector("#coverCanvas");
 const coverStartButton = document.querySelector("#coverStartButton");
 const answeredCount = document.querySelector("#answeredCount");
@@ -385,7 +469,7 @@ function activeScenarioScenes() {
   return state.scenarioPlan?.scenes?.length ? state.scenarioPlan.scenes : scenarioScenes;
 }
 
-const PUBLIC_API_BASE = "https://wellbeing-impact-studio-git-main-ikeda1028s-projects.vercel.app";
+const PUBLIC_API_BASE = "https://wellbeing-impact-studio.vercel.app";
 const shouldUsePublicApi =
   location.protocol === "file:" ||
   ["localhost", "127.0.0.1"].includes(location.hostname) ||
@@ -405,6 +489,282 @@ function apiBaseCandidates(primaryBase) {
   const candidates = [primaryBase || ""];
   if (shouldUsePublicApi) candidates.push(PUBLIC_API_BASE);
   return [...new Set(candidates.map((base) => String(base || "").replace(/\/$/, "")))];
+}
+
+async function loadPublicConfig() {
+  for (const base of apiBaseCandidates(AI_SCENARIO_API)) {
+    try {
+      const response = await fetch(`${base}/api/public-config`);
+      const config = await response.json();
+      if (response.ok && config.ok && config.supabaseUrl && config.supabaseAnonKey) return config;
+    } catch {
+      // Try the next base URL.
+    }
+  }
+  return null;
+}
+
+function renderPhoneAuthStatus() {
+  if (!phoneAuthBadge || !phoneAuthMemo) return;
+  if (state.participant.phoneVerified) {
+    phoneAuthBadge.textContent = "SMS認証済み";
+    phoneAuthMemo.textContent = `${state.participant.phone || "登録済み番号"} で本人確認済みです。`;
+    return;
+  }
+  if (!authState.configured) {
+    phoneAuthBadge.textContent = "設定待ち";
+    phoneAuthMemo.textContent = "SMS認証を使うには、Vercelに SUPABASE_ANON_KEY を追加し、Supabase AuthのPhone providerを有効化してください。";
+    return;
+  }
+  phoneAuthBadge.textContent = "未認証";
+  phoneAuthMemo.textContent = "SMSで6桁コードを受け取り、本人確認します。";
+}
+
+async function initSupabaseAuth() {
+  const config = await loadPublicConfig();
+  authState.configured = Boolean(config);
+  if (!config || !window.supabase?.createClient) {
+    renderPhoneAuthStatus();
+    return;
+  }
+
+  authState.client = window.supabase.createClient(config.supabaseUrl, config.supabaseAnonKey, {
+    auth: { persistSession: true, autoRefreshToken: true }
+  });
+  const { data } = await authState.client.auth.getSession();
+  authState.session = data?.session || null;
+  if (authState.session?.user?.phone) {
+    state.participant.authUserId = authState.session.user.id;
+    state.participant.phone = authState.session.user.phone;
+    state.participant.phoneVerified = true;
+    persistParticipantProfile();
+  }
+  authState.client.auth.onAuthStateChange((_event, session) => {
+    authState.session = session;
+    if (session?.user?.phone) {
+      state.participant.authUserId = session.user.id;
+      state.participant.phone = session.user.phone;
+      state.participant.phoneVerified = true;
+      persistParticipantProfile();
+      renderPhoneAuthStatus();
+      renderParticipantPanel();
+    }
+  });
+  renderPhoneAuthStatus();
+}
+
+function normalizePhone(value) {
+  return String(value || "").replace(/[^\d+]/g, "");
+}
+
+async function sendPhoneOtp() {
+  const phone = normalizePhone(participantPhoneInput.value);
+  if (!phone || !phone.startsWith("+")) {
+    phoneAuthMemo.textContent = "携帯番号は国番号付きで入力してください。例: +819012345678";
+    return;
+  }
+  if (!authState.client) {
+    phoneAuthMemo.textContent = "SMS認証の設定がまだ有効ではありません。SUPABASE_ANON_KEY とPhone providerを確認してください。";
+    return;
+  }
+  sendPhoneOtpButton.disabled = true;
+  phoneAuthBadge.textContent = "送信中";
+  phoneAuthMemo.textContent = "SMSコードを送信しています。";
+  const { error } = await authState.client.auth.signInWithOtp({ phone });
+  sendPhoneOtpButton.disabled = false;
+  if (error) {
+    phoneAuthBadge.textContent = "送信失敗";
+    phoneAuthMemo.textContent = error.message;
+    return;
+  }
+  authState.lastPhone = phone;
+  state.participant.phone = phone;
+  phoneAuthBadge.textContent = "コード送信済み";
+  phoneAuthMemo.textContent = "SMSに届いた6桁コードを入力してください。";
+}
+
+async function verifyPhoneOtp() {
+  const phone = normalizePhone(participantPhoneInput.value || authState.lastPhone);
+  const token = phoneOtpInput.value.trim();
+  if (!authState.client || !phone || token.length < 6) {
+    phoneAuthMemo.textContent = "携帯番号と6桁コードを入力してください。";
+    return;
+  }
+  verifyPhoneOtpButton.disabled = true;
+  phoneAuthBadge.textContent = "確認中";
+  const { data, error } = await authState.client.auth.verifyOtp({ phone, token, type: "sms" });
+  verifyPhoneOtpButton.disabled = false;
+  if (error) {
+    phoneAuthBadge.textContent = "認証失敗";
+    phoneAuthMemo.textContent = error.message;
+    return;
+  }
+  authState.session = data?.session || null;
+  state.participant.authUserId = data?.user?.id || authState.session?.user?.id || "";
+  state.participant.phone = phone;
+  state.participant.phoneVerified = true;
+  phoneOtpInput.value = "";
+  persistParticipantProfile();
+  renderPhoneAuthStatus();
+  await saveParticipantProfile(false);
+}
+
+function profilePayload() {
+  return {
+    ...state.participant,
+    displayName: state.participant.displayName || activeMember()?.name || "参加者",
+    role: state.participant.role || activeMember()?.role || "",
+    companyName: state.participant.participationMode === "organization" ? state.participant.companyName : "",
+    websiteUrl: state.participant.websiteUrl || websiteUrlInput?.value || "",
+    industry: state.participant.industry || state.scenarioContext.industry || ""
+  };
+}
+
+function currentAssessmentPayload() {
+  const profile = currentProfile();
+  return {
+    participantKey: state.participant.participantKey,
+    mode: state.assessmentMode,
+    round: state.round,
+    memberLabel: state.assessmentMode === "organization" ? profile.name : state.participant.displayName || profile.name || "参加者",
+    memberRole: state.assessmentMode === "organization" ? profile.role : state.participant.role || profile.role || "",
+    scores: allScores(),
+    answers: profile.answers?.[state.round] || {},
+    esgAnswers: profile.esgAnswers || {},
+    scenarioScores: state.scenario?.scores || {},
+    context: {
+      participationMode: state.participant.participationMode,
+      companyName: state.participant.companyName || companyNameInput?.value || "",
+      teamName: state.participant.teamName || "",
+      websiteUrl: state.participant.websiteUrl || websiteUrlInput?.value || "",
+      scenarioContext: state.scenarioContext,
+      websiteAssessment: state.websiteAssessment
+    }
+  };
+}
+
+async function postParticipantSession(includeAssessment = false) {
+  let lastError = null;
+  const accessToken = authState.session?.access_token || "";
+  const body = {
+    profile: profilePayload(),
+    assessment: includeAssessment ? currentAssessmentPayload() : null
+  };
+
+  for (const base of apiBaseCandidates(AI_SCENARIO_API)) {
+    try {
+      const response = await fetch(`${base}/api/participant-session`, {
+        method: "POST",
+        headers: {
+          "content-type": "application/json",
+          ...(accessToken ? { "authorization": `Bearer ${accessToken}` } : {})
+        },
+        body: JSON.stringify(body)
+      });
+      const result = await response.json();
+      if (!response.ok || !result.ok) throw new Error(result.error || "Participant save failed");
+      return result;
+    } catch (error) {
+      lastError = error;
+    }
+  }
+  throw lastError || new Error("Participant save failed");
+}
+
+function persistParticipantProfile() {
+  localStorage.setItem(PARTICIPANT_STORAGE_KEY, JSON.stringify({
+    ...state.participant,
+    configured: true,
+    savedAt: new Date().toISOString()
+  }));
+}
+
+function setParticipantModalVisible(visible) {
+  participantModal?.classList.toggle("is-visible", visible);
+}
+
+function fillParticipantForm() {
+  participantNameInput.value = state.participant.displayName;
+  participantEmailInput.value = state.participant.email;
+  participantPhoneInput.value = state.participant.phone;
+  participantModeSelect.value = state.participant.participationMode;
+  participantCompanyInput.value = state.participant.companyName;
+  participantTeamInput.value = state.participant.teamName;
+  participantRoleInput.value = state.participant.role;
+  participantWebsiteInput.value = state.participant.websiteUrl;
+  participantModalBadge.textContent = state.participant.configured ? "変更" : "初回設定";
+  const isOrg = state.participant.participationMode === "organization";
+  participantCompanyInput.disabled = !isOrg;
+  participantTeamInput.disabled = !isOrg;
+  renderPhoneAuthStatus();
+}
+
+function readParticipantForm() {
+  state.participant.displayName = participantNameInput.value.trim();
+  state.participant.email = participantEmailInput.value.trim();
+  state.participant.phone = normalizePhone(participantPhoneInput.value) || state.participant.phone;
+  state.participant.participationMode = participantModeSelect.value;
+  state.participant.companyName = participantCompanyInput.value.trim();
+  state.participant.teamName = participantTeamInput.value.trim();
+  state.participant.role = participantRoleInput.value.trim();
+  state.participant.websiteUrl = participantWebsiteInput.value.trim();
+  state.participant.configured = true;
+
+  if (state.participant.participationMode === "organization") {
+    state.assessmentMode = "organization";
+    companyNameInput.value = state.participant.companyName || companyNameInput.value;
+    websiteUrlInput.value = state.participant.websiteUrl || websiteUrlInput.value;
+    const member = activeMember();
+    member.name = state.participant.displayName || member.name;
+    member.role = state.participant.role || state.participant.teamName || member.role;
+  } else {
+    state.assessmentMode = "individual";
+  }
+}
+
+function renderParticipantPanel() {
+  const isOrg = state.participant.participationMode === "organization";
+  participantSummaryName.textContent = state.participant.displayName || "未設定";
+  participantSummaryMode.textContent = isOrg ? "会社・チーム所属" : "個人参加";
+  participantSummaryCompany.textContent = isOrg
+    ? [state.participant.companyName || "会社未設定", state.participant.teamName].filter(Boolean).join(" / ")
+    : "個人参加";
+  participantSaveBadge.textContent = state.participantSaveStatus;
+  renderPhoneAuthStatus();
+}
+
+async function saveParticipantProfile(includeAssessment = false) {
+  state.participantSaveStatus = "保存中";
+  participantSaveMemo.textContent = "参加者データをSupabaseへ保存しています。";
+  renderParticipantPanel();
+  try {
+    persistParticipantProfile();
+    const result = await postParticipantSession(includeAssessment);
+    if (result.authUserId) {
+      state.participant.authUserId = result.authUserId;
+      state.participant.phoneVerified = Boolean(result.phoneVerified);
+      persistParticipantProfile();
+    }
+    state.participantSaveStatus = result.assessmentId ? "診断保存済み" : "参加者保存済み";
+    participantSaveMemo.textContent = result.companyId
+      ? "会社・チーム所属として保存しました。同じ所属の回答を組織データとして扱えます。"
+      : "個人参加として保存しました。あとから会社所属へ変更できます。";
+    setParticipantModalVisible(false);
+  } catch (error) {
+    console.warn("Participant save failed", error);
+    state.participantSaveStatus = "ローカル保存";
+    participantSaveMemo.textContent = "ブラウザには保存しましたが、DB保存に失敗しました。Vercelの環境変数とSupabase schemaを確認してください。";
+  }
+  renderParticipantPanel();
+}
+
+let participantSaveTimer = null;
+function scheduleAssessmentSave() {
+  if (!state.participant.configured) return;
+  clearTimeout(participantSaveTimer);
+  participantSaveTimer = setTimeout(() => {
+    saveParticipantProfile(true);
+  }, 1400);
 }
 
 function scoreToScale(score) {
@@ -573,6 +933,7 @@ function renderForm() {
     input.addEventListener("change", (event) => {
       currentAnswers()[event.target.name] = Number(event.target.value);
       updateAll();
+      scheduleAssessmentSave();
     });
   });
 }
@@ -635,6 +996,7 @@ function renderEsgForm() {
     input.addEventListener("change", (event) => {
       currentEsgAnswers()[event.target.name] = Number(event.target.value);
       updateAll();
+      scheduleAssessmentSave();
     });
   });
 }
@@ -3421,6 +3783,7 @@ function renderGrowth() {
 }
 
 function updateAll() {
+  renderParticipantPanel();
   renderModeControls();
   updateCounters();
   renderScores();
@@ -3461,6 +3824,7 @@ function sampleAnswers() {
   renderForm();
   sampleEsgAnswers();
   updateAll();
+  scheduleAssessmentSave();
 }
 
 function sampleEsgAnswers() {
@@ -3534,6 +3898,7 @@ function resetCurrentRound() {
   renderForm();
   renderEsgForm();
   updateAll();
+  scheduleAssessmentSave();
 }
 
 document.querySelectorAll("[data-view]").forEach((button) => {
@@ -3564,6 +3929,7 @@ assessmentModeSelect.addEventListener("change", (event) => {
   renderForm();
   renderEsgForm();
   updateAll();
+  scheduleAssessmentSave();
 });
 
 memberSelect.addEventListener("change", (event) => {
@@ -3571,16 +3937,19 @@ memberSelect.addEventListener("change", (event) => {
   renderForm();
   renderEsgForm();
   updateAll();
+  scheduleAssessmentSave();
 });
 
 memberNameInput.addEventListener("input", (event) => {
   activeMember().name = event.target.value.trim() || "名称未設定";
   updateAll();
+  scheduleAssessmentSave();
 });
 
 memberRoleInput.addEventListener("input", (event) => {
   activeMember().role = event.target.value.trim() || "メンバー";
   updateAll();
+  scheduleAssessmentSave();
 });
 
 addMemberButton.addEventListener("click", () => {
@@ -3602,6 +3971,32 @@ addMemberButton.addEventListener("click", () => {
 
 document.querySelector("#sampleButton").addEventListener("click", sampleAnswers);
 document.querySelector("#resetButton").addEventListener("click", resetCurrentRound);
+editParticipantButton.addEventListener("click", () => {
+  fillParticipantForm();
+  setParticipantModalVisible(true);
+});
+sendPhoneOtpButton.addEventListener("click", sendPhoneOtp);
+verifyPhoneOtpButton.addEventListener("click", verifyPhoneOtp);
+participantSaveButton.addEventListener("click", () => {
+  readParticipantForm();
+  renderForm();
+  renderEsgForm();
+  updateAll();
+  saveParticipantProfile(true);
+});
+participantSkipButton.addEventListener("click", () => {
+  state.participant.configured = true;
+  state.participant.displayName = state.participant.displayName || "個人参加者";
+  persistParticipantProfile();
+  state.participantSaveStatus = "あとで設定";
+  setParticipantModalVisible(false);
+  updateAll();
+});
+participantModeSelect.addEventListener("change", () => {
+  const isOrg = participantModeSelect.value === "organization";
+  participantCompanyInput.disabled = !isOrg;
+  participantTeamInput.disabled = !isOrg;
+});
 websiteAssessButton.addEventListener("click", assessWebsiteFromUrl);
 generateAiRecommendationsButton.addEventListener("click", generateAiRecommendations);
 resetAiRecommendationsButton.addEventListener("click", resetAiRecommendations);
@@ -3648,6 +4043,12 @@ try {
 } catch {
   state.newsIntelligence = null;
 }
+if (state.participant.participationMode === "organization") {
+  state.assessmentMode = "organization";
+}
+fillParticipantForm();
+initSupabaseAuth();
+setParticipantModalVisible(!state.participant.configured);
 ensureScenarioStarted();
 updateAll();
 animateCoverCanvas();

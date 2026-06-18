@@ -97,6 +97,31 @@
             </div>
           </div>
 
+          <section class="panel participant-panel" id="participantPanel">
+            <div class="panel-header">
+              <div>
+                <h2>参加者・所属設定</h2>
+                <p>個人参加か、会社・チーム所属での参加かを確認します。個人参加から会社所属への変更もできます。</p>
+              </div>
+              <span class="badge muted" id="participantSaveBadge">未保存</span>
+            </div>
+            <div class="participant-summary">
+              <div>
+                <span>参加者</span>
+                <strong id="participantSummaryName">未設定</strong>
+              </div>
+              <div>
+                <span>参加形態</span>
+                <strong id="participantSummaryMode">未設定</strong>
+              </div>
+              <div>
+                <span>所属</span>
+                <strong id="participantSummaryCompany">個人参加</strong>
+              </div>
+              <button class="secondary-button" id="editParticipantButton" type="button">参加設定を変更</button>
+            </div>
+          </section>
+
           <div class="controls-row">
             <label>
               利用モード
@@ -524,6 +549,73 @@
       </main>
     </div>
 
+    <div class="modal-backdrop is-visible" id="participantModal" role="dialog" aria-modal="true" aria-labelledby="participantModalTitle">
+      <section class="participant-modal">
+        <div class="panel-header">
+          <div>
+            <span class="eyebrow">Participant Login</span>
+            <h2 id="participantModalTitle">参加形態を確認します</h2>
+            <p>個人で使う場合も、会社・チームで参加する場合も、診断データをあとから追跡できるように保存します。</p>
+          </div>
+          <span class="badge muted" id="participantModalBadge">初回設定</span>
+        </div>
+        <div class="participant-form">
+          <label>
+            氏名・表示名
+            <input id="participantNameInput" type="text" placeholder="例: 池田 哲哉">
+          </label>
+          <label>
+            メール任意
+            <input id="participantEmailInput" type="email" placeholder="name@example.com">
+          </label>
+          <label>
+            携帯番号
+            <input id="participantPhoneInput" type="tel" placeholder="例: +819012345678">
+          </label>
+          <div class="phone-auth-card">
+            <div>
+              <span class="badge muted" id="phoneAuthBadge">未認証</span>
+              <p id="phoneAuthMemo">SMSで6桁コードを受け取り、本人確認します。</p>
+            </div>
+            <div class="phone-auth-actions">
+              <button class="secondary-button" id="sendPhoneOtpButton" type="button">SMSコード送信</button>
+              <input id="phoneOtpInput" type="text" inputmode="numeric" maxlength="6" placeholder="6桁コード">
+              <button class="secondary-button" id="verifyPhoneOtpButton" type="button">コード確認</button>
+            </div>
+          </div>
+          <label>
+            参加形態
+            <select id="participantModeSelect">
+              <option value="individual">個人で参加</option>
+              <option value="organization">会社・チームに所属して参加</option>
+            </select>
+          </label>
+          <label>
+            会社・団体名
+            <input id="participantCompanyInput" type="text" placeholder="例: 株式会社〇〇">
+          </label>
+          <label>
+            チーム・部署
+            <input id="participantTeamInput" type="text" placeholder="例: 新規事業チーム">
+          </label>
+          <label>
+            役割
+            <input id="participantRoleInput" type="text" placeholder="例: 現場リーダー">
+          </label>
+          <label>
+            ホームページURL任意
+            <input id="participantWebsiteInput" type="url" placeholder="https://example.co.jp">
+          </label>
+        </div>
+        <div class="modal-actions">
+          <button class="secondary-button" id="participantSkipButton" type="button">あとで設定</button>
+          <button class="primary-button" id="participantSaveButton" type="button">この設定で始める</button>
+        </div>
+        <p class="narrative" id="participantSaveMemo">会社所属にすると、同じ会社・チームの回答を組織データとして集計できるようになります。</p>
+      </section>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="app.js"></script>
   </body>
 </html>
