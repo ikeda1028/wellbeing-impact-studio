@@ -1,4 +1,4 @@
-import { insertRows, isSupabaseConfigured, normalizeKey, upsertRows } from "./_supabase.js";
+import { insertRows, isSupabaseConfigured, normalizeKey, supabaseRequest, upsertRows } from "./_supabase.js";
 
 const SUPABASE_URL = process.env.SUPABASE_URL;
 const SUPABASE_SERVICE_ROLE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_SERVICE_KEY;
@@ -54,9 +54,18 @@ async function resolveCompany(profile = {}) {
   return rows?.[0] || null;
 }
 
+async function findProfileByAuthUserId(authUserId) {
+  if (!authUserId) return null;
+  const rows = await supabaseRequest("participant_profiles", {
+    params: `auth_user_id=eq.${encodeURIComponent(authUserId)}&select=id,participant_key&limit=1`
+  });
+  return rows?.[0] || null;
+}
+
 async function saveProfile(profile = {}, authUser = null) {
   const company = await resolveCompany(profile);
-  const participantKey = cleanText(profile.participantKey);
+  const existingAuthProfile = await findProfileByAuthUserId(authUser?.id);
+  const participantKey = cleanText(existingAuthProfile?.participant_key || profile.participantKey);
   if (!participantKey) throw new Error("participantKey is required");
   const phone = cleanText(authUser?.phone || profile.phone);
 
@@ -79,7 +88,7 @@ async function saveProfile(profile = {}, authUser = null) {
       authProvider: authUser?.app_metadata?.provider || null
     },
     updated_at: new Date().toISOString()
-  }], "participant_key");
+  }], existingAuthProfile ? "auth_user_id" : "participant_key");
 
   const participant = profileRows?.[0];
   if (company && participant) {
@@ -104,7 +113,7 @@ async function saveAssessment(profileResult, assessment = {}) {
     participant_id: participant?.id || null,
     auth_user_id: participant?.auth_user_id || null,
     company_id: company?.id || null,
-    participant_key: cleanText(assessment.participantKey || participant?.participant_key),
+    participant_key: cleanText(participant?.participant_key || assessment.participantKey),
     mode: assessment.mode === "organization" ? "organization" : "individual",
     round: assessment.round === "after" ? "after" : "before",
     member_label: cleanText(assessment.memberLabel) || null,
@@ -137,6 +146,7 @@ export default async function handler(req, res) {
       ok: true,
       configured: true,
       participantId: profileResult.participant?.id,
+      participantKey: profileResult.participant?.participant_key || null,
       authUserId: authUser?.id || null,
       phoneVerified: Boolean(authUser?.phone),
       companyId: profileResult.company?.id || null,

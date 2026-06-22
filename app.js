@@ -187,6 +187,25 @@ function createParticipantKey() {
   return random;
 }
 
+function createEmptyParticipantProfile() {
+  return {
+    participantKey: createParticipantKey(),
+    displayName: "",
+    email: "",
+    phone: "",
+    authUserId: "",
+    phoneVerified: false,
+    participationMode: "individual",
+    companyName: "",
+    teamName: "",
+    role: "",
+    websiteUrl: "",
+    industry: "",
+    configured: false,
+    savedAt: ""
+  };
+}
+
 function loadParticipantProfile() {
   const participantKey = createParticipantKey();
   try {
@@ -208,22 +227,7 @@ function loadParticipantProfile() {
       savedAt: saved.savedAt || ""
     };
   } catch {
-    return {
-      participantKey,
-      displayName: "",
-      email: "",
-      phone: "",
-      authUserId: "",
-      phoneVerified: false,
-      participationMode: "individual",
-      companyName: "",
-      teamName: "",
-      role: "",
-      websiteUrl: "",
-      industry: "",
-      configured: false,
-      savedAt: ""
-    };
+    return createEmptyParticipantProfile();
   }
 }
 
@@ -295,6 +299,7 @@ const participantSummaryName = document.querySelector("#participantSummaryName")
 const participantSummaryMode = document.querySelector("#participantSummaryMode");
 const participantSummaryCompany = document.querySelector("#participantSummaryCompany");
 const editParticipantButton = document.querySelector("#editParticipantButton");
+const logoutParticipantButton = document.querySelector("#logoutParticipantButton");
 const participantModal = document.querySelector("#participantModal");
 const participantModalBadge = document.querySelector("#participantModalBadge");
 const participantNameInput = document.querySelector("#participantNameInput");
@@ -312,6 +317,7 @@ const participantRoleInput = document.querySelector("#participantRoleInput");
 const participantWebsiteInput = document.querySelector("#participantWebsiteInput");
 const participantSaveButton = document.querySelector("#participantSaveButton");
 const participantSkipButton = document.querySelector("#participantSkipButton");
+const participantLogoutButton = document.querySelector("#participantLogoutButton");
 const participantSaveMemo = document.querySelector("#participantSaveMemo");
 const coverCanvas = document.querySelector("#coverCanvas");
 const coverStartButton = document.querySelector("#coverStartButton");
@@ -609,6 +615,24 @@ async function verifyPhoneOtp() {
   await saveParticipantProfile(false);
 }
 
+async function logoutParticipant() {
+  if (authState.client) {
+    await authState.client.auth.signOut();
+  }
+  authState.session = null;
+  authState.lastPhone = "";
+  localStorage.removeItem(PARTICIPANT_STORAGE_KEY);
+  localStorage.removeItem("WELLBEING_PARTICIPANT_KEY");
+  state.participant = createEmptyParticipantProfile();
+  state.participantSaveStatus = "ログアウト済み";
+  if (phoneOtpInput) phoneOtpInput.value = "";
+  fillParticipantForm();
+  renderPhoneAuthStatus();
+  renderParticipantPanel();
+  setParticipantModalVisible(true);
+  participantSaveMemo.textContent = "ログアウトしました。別の携帯番号でログインするか、参加形態を設定してください。";
+}
+
 function profilePayload() {
   return {
     ...state.participant,
@@ -740,6 +764,10 @@ async function saveParticipantProfile(includeAssessment = false) {
   try {
     persistParticipantProfile();
     const result = await postParticipantSession(includeAssessment);
+    if (result.participantKey && result.participantKey !== state.participant.participantKey) {
+      state.participant.participantKey = result.participantKey;
+      localStorage.setItem("WELLBEING_PARTICIPANT_KEY", result.participantKey);
+    }
     if (result.authUserId) {
       state.participant.authUserId = result.authUserId;
       state.participant.phoneVerified = Boolean(result.phoneVerified);
@@ -753,7 +781,7 @@ async function saveParticipantProfile(includeAssessment = false) {
   } catch (error) {
     console.warn("Participant save failed", error);
     state.participantSaveStatus = "ローカル保存";
-    participantSaveMemo.textContent = "ブラウザには保存しましたが、DB保存に失敗しました。Vercelの環境変数とSupabase schemaを確認してください。";
+    participantSaveMemo.textContent = `ブラウザには保存しましたが、DB保存に失敗しました。${error.message || "Vercelの環境変数とSupabase schemaを確認してください。"}`;
   }
   renderParticipantPanel();
 }
@@ -3975,6 +4003,7 @@ editParticipantButton.addEventListener("click", () => {
   fillParticipantForm();
   setParticipantModalVisible(true);
 });
+logoutParticipantButton.addEventListener("click", logoutParticipant);
 sendPhoneOtpButton.addEventListener("click", sendPhoneOtp);
 verifyPhoneOtpButton.addEventListener("click", verifyPhoneOtp);
 participantSaveButton.addEventListener("click", () => {
@@ -3992,6 +4021,7 @@ participantSkipButton.addEventListener("click", () => {
   setParticipantModalVisible(false);
   updateAll();
 });
+participantLogoutButton.addEventListener("click", logoutParticipant);
 participantModeSelect.addEventListener("change", () => {
   const isOrg = participantModeSelect.value === "organization";
   participantCompanyInput.disabled = !isOrg;
